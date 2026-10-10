@@ -19,7 +19,7 @@ for fp in files:
             cur_prov=l[4:].strip(); prov_info={'name':cur_prov,'state':sid}; provinces.append(prov_info); continue
         if not l.startswith('|') or set(l.replace('|','').strip())<=set('-: '): continue
         c=cells(l)
-        if mode=='Карточка государства' and len(c)==2 and c[0]!='Поле': card[c[0]]=c[1]
+        if mode=='Карточка государства' and len(c)==2 and c[0]!='Поле': card[c[0]]=re.sub(r'\s*·\s*\[[^\]]*\]\([^)]*\)','',c[1]).strip()
         elif mode=='Провинции' and cur_prov and len(c)==2 and c[0]!='Поле':
             if c[0].startswith('Центр'):
                 x,y=[int(v) for v in re.findall(r'\d+',c[1])[:2]]; prov_info['cx']=x; prov_info['cy']=y

@@ -121,7 +121,9 @@ button{font:inherit;color:inherit}
 .chron b{color:var(--gold);font-variant-numeric:tabular-nums}
 .house{border-top:1px solid rgba(122,102,68,.45);padding:12px 0}
 .house:first-of-type{border-top:0;padding-top:0}
-.house h5{margin:0;font-size:15px;font-weight:700}
+.house h5{margin:0;font-size:15px;font-weight:700;display:flex;gap:8px;align-items:center}
+.house h5 img.harms{flex:none;border-radius:50%;box-shadow:0 0 0 1.5px var(--gold)}
+.phead.art{background:linear-gradient(90deg,rgba(12,22,38,.96) 30%,rgba(12,22,38,.55)),var(--art) right center/cover no-repeat;min-height:110px}
 .house p{margin:4px 0 0;color:var(--muted);font-size:14px}
 .house ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .house li b{color:var(--text)}
@@ -192,10 +194,14 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const dash=v=>(!v||v==='—')?'—':v;
 
 /* ---------- Портреты и гербы-картинки (из сводки персонажей) ---------- */
-const PORTRAITS=[[/Олаф Сард/,'img/p-olaf-sard.jpg'],[/Юсти(на|ана).*Калифакт/,'img/p-yustiana-kalifakt.jpg'],[/Амала Сард/,'img/p-amala-sard.jpg'],[/Тересия Сард/,'img/p-teresiya-sard.jpg'],[/Торисмунд Амм?ал/,'img/p-torismund-amal.jpg']];
+const PORTRAITS=[[/Олаф Сард/,'img/p-olaf-sard.jpg'],[/Юсти(на|ана).*Калифакт/,'img/p-yustiana-kalifakt.jpg'],[/Амала Сард/,'img/p-amala-sard.jpg'],[/Тересия Сард/,'img/p-teresiya-sard.jpg'],[/Торисмунд Амм?ал/,'img/p-torismund-amal.jpg'],[/Елена Васильева/,'img/p-elena-vasileva.jpg'],[/Лагерта/,'img/p-lagerta-tebriksdotter.jpg']];
 const portrait=n=>{const p=PORTRAITS.find(([r])=>r.test(n));return p?p[1]:null};
 const ARMS_IMG={'Хеортания':'img/arms-sardy.png','Аммалингия':'img/arms-sardy.png', // герб дома Сардов
-  'Данники_Турана':'img/arms-ammaly-arirhail.png'}; // герб Аммалов из Арирхайла (со слов Nerissa)
+  'Данники_Турана':'img/arms-ammaly-arirhail.png', // герб Аммалов из Арирхайла (со слов Nerissa)
+  'Северные_Владыки':'img/arms-vasilevy.png'}; // герб рода Васильевых
+const HOUSE_ARMS=[[/^Племя Сардов/,'img/arms-sardy.png'],[/^Аммалы из Арирхайла/,'img/arms-ammaly-arirhail.png'],[/^Род Васильевых/,'img/arms-vasilevy.png'],[/^Род Барбариенсов/,'img/arms-barbariensy.png']];
+const houseArms=n=>{const p=HOUSE_ARMS.find(([r])=>r.test(n));return p?p[1]:null};
+const STATE_ART={'Северные_Владыки':'img/art-severnye-vladyki.jpg'}; // эмблема Северных Владык
 /* ---------- Герб ---------- */
 const CH={
  sun:'<circle cx="50" cy="52" r="13"/><g stroke-width="5" stroke-linecap="round">'+[...Array(8)].map((_,i)=>{const a=i*Math.PI/4,x1=50+Math.cos(a)*19,y1=52+Math.sin(a)*19,x2=50+Math.cos(a)*27,y2=52+Math.sin(a)*27;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor"/>`}).join('')+'</g>',
@@ -351,7 +357,8 @@ function openSettlement(s,fly){
   if(fly) centerOn(s.x,s.y,Math.max(k,1));
 }
 function houseBlock(h){const H=D.houses[h];
-  return `<div class="house"><h5>${esc(H.name)}</h5>${H.desc?`<p>${esc(H.desc)}</p>`:''}
+  const ha=houseArms(H.name);
+  return `<div class="house"><h5>${ha?`<img class="harms" src="${ha}" alt="" width="26" height="26">`:''}${esc(H.name)}</h5>${H.desc?`<p>${esc(H.desc)}</p>`:''}
     <ul>${H.members.map(m=>`<li>${portrait(m.name)?face(m):''}<div><b>${esc(m.name)}</b>${m.text?` <span>${esc(m.text.replace(/^,\s*/,''))}</span>`:''}</div></li>`).join('')}</ul></div>`}
 function openState(st,fly){
   const provs=D.provinces.filter(p=>p.state===st.id);
@@ -360,7 +367,7 @@ function openState(st,fly){
   const cul=st.culture?D.cultures[st.culture]:null;
   const faith=st.faith||(cul?cul.faith:null);
   openPanel(`
-   <div class="phead">${arms(st,64)}<div><h2>${esc(st.title)}</h2><p>${esc(st.full!==st.title?st.full.split('·').slice(1).join('·').trim()||st.bloc:st.bloc)}</p></div></div>
+   <div class="phead${STATE_ART[st.id]?' art':''}" style="${STATE_ART[st.id]?`--art:url(${STATE_ART[st.id]})`:''}">${arms(st,64)}<div><h2>${esc(st.title)}</h2><p>${esc(st.full!==st.title?st.full.split('·').slice(1).join('·').trim()||st.bloc:st.bloc)}</p></div></div>
    ${faces(people,7)}
    ${rule}
    <dl class="facts">
