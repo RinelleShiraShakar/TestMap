@@ -198,10 +198,11 @@ const PORTRAITS=[[/Олаф Сард/,'img/p-olaf-sard.jpg'],[/Юсти(на|а�
 const portrait=n=>{const p=PORTRAITS.find(([r])=>r.test(n));return p?p[1]:null};
 const ARMS_IMG={'Хеортания':'img/arms-sardy.png','Аммалингия':'img/arms-sardy.png', // герб дома Сардов
   'Данники_Турана':'img/arms-ammaly-arirhail.png', // герб Аммалов из Арирхайла (со слов Nerissa)
-  'Северные_Владыки':'img/arms-vasilevy.png'}; // герб рода Васильевых
+  'Северные_Владыки':'img/arms-vasilevy.png', // герб рода Васильевых
+  'Империя':'img/arms-imperiya.png'}; // герб Империи (орёл с эмблемы)
 const HOUSE_ARMS=[[/^Племя Сардов/,'img/arms-sardy.png'],[/^Аммалы из Арирхайла/,'img/arms-ammaly-arirhail.png'],[/^Род Васильевых/,'img/arms-vasilevy.png'],[/^Род Барбариенсов/,'img/arms-barbariensy.png']];
 const houseArms=n=>{const p=HOUSE_ARMS.find(([r])=>r.test(n));return p?p[1]:null};
-const STATE_ART={'Северные_Владыки':'img/art-severnye-vladyki.jpg'}; // эмблема Северных Владык
+const STATE_ART={'Северные_Владыки':'img/art-severnye-vladyki.jpg','Империя':'img/art-imperiya.jpg'}; // эмблема Северных Владык
 /* ---------- Герб ---------- */
 const CH={
  sun:'<circle cx="50" cy="52" r="13"/><g stroke-width="5" stroke-linecap="round">'+[...Array(8)].map((_,i)=>{const a=i*Math.PI/4,x1=50+Math.cos(a)*19,y1=52+Math.sin(a)*19,x2=50+Math.cos(a)*27,y2=52+Math.sin(a)*27;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor"/>`}).join('')+'</g>',
