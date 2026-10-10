@@ -1,810 +1,419 @@
-<!doctype html>
-<html lang="ru">
-<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Атлас Ойкумены</title>
-<meta name="description" content="Карта мира текстовой ролевой игры «Ойкумена»">
+<title>Карта Ойкумены</title>
+<meta name="description" content="Интерактивная карта мира Ойкумены, Весна 119 г. от Кары богов">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@500;600;700&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
-/* Layout: full-bleed parchment map on a dark table; floating ink panels over it. */
+/* Layout: карта на весь экран; слева сверху шапка и поиск, справа выезжает панель владения (на телефоне снизу). Один тёмный образ по мотивам карты Рунтерры. */
 :root{
-  --ink:#15110c; --panel:rgba(28,22,16,.93); --panel-solid:#1f1912; --line:#4a3c2a;
-  --parch:#f0e5c9; --muted:#b9a886; --gold:#d9a845; --gold-dim:#8f6d2a; --blood:#c0244e; --ok:#7fb069; --warn:#e0a03a; --bad:#d9534f;
-  --river:#3f86c4; --river-edge:#183a5c;
-  --display:"Alegreya SC", "Palatino Linotype", Georgia, serif;
-  --body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --abyss:#070d18;          /* фон за картой, море */
+  --panel:#0c1626;          /* панель */
+  --panel-2:#12203a;        /* поднятые поверхности */
+  --gold:#c8aa6e;           /* главный акцент, рамки и заголовки */
+  --gold-dim:#7a6644;       /* линии, разделители */
+  --ice:#8fc9dc;            /* второй акцент: выделение, фокус */
+  --text:#ece4d2;
+  --muted:#93a0b6;
+  --font-display:"Cormorant SC","Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --font-body:"Alegreya Sans","Segoe UI",system-ui,sans-serif;
+  --panel-w:min(420px,100vw);
   color-scheme:dark;
 }
-[hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0;background:var(--ink);color:var(--parch);font-family:var(--body);font-size:14px;overflow:hidden;-webkit-tap-highlight-color:transparent}
-button,select,input,textarea{font:inherit;color:inherit}
-button{cursor:pointer}
-:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+body{margin:0;background:var(--abyss);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.5;overflow:hidden}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
 
-#vp{position:fixed;inset:0;overflow:hidden;touch-action:none;cursor:grab;background:radial-gradient(ellipse at center,#221a11 0%,#120e09 75%)}
-#vp.drag{cursor:grabbing}
-#vp.cross{cursor:crosshair}
-#world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-#world img,#world canvas,#world svg{position:absolute;left:0;top:0;user-select:none;-webkit-user-drag:none;pointer-events:none}
-#world img{box-shadow:0 10px 60px #000}
-#fill{mix-blend-mode:multiply;opacity:.85}
-#overlay{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+#stage{position:fixed;inset:0;overflow:hidden;touch-action:none;cursor:grab;background:
+  radial-gradient(ellipse at 30% 20%,#0f1d33 0,transparent 60%),var(--abyss)}
+#stage.dragging{cursor:grabbing}
+#world{position:absolute;left:0;top:0;width:2035px;height:4096px;transform-origin:0 0;will-change:transform}
+#world img.layer{position:absolute;left:0;top:0;width:2035px;height:4096px;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;transition:opacity .35s}
+#hl{position:absolute;left:0;top:0;width:2032px;height:4096px;pointer-events:none;filter:blur(1.2px)}
 
-/* top bar */
-#top{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;display:flex;gap:8px;align-items:center;pointer-events:none;flex-wrap:wrap;z-index:5}
-#top > *{pointer-events:auto}
-.brand{font-family:var(--display);font-size:20px;letter-spacing:.04em;text-shadow:0 1px 6px #000;margin-right:6px;white-space:nowrap}
-.brand small{display:block;font-family:var(--body);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.search{position:relative;flex:1 1 180px;max-width:320px;min-width:0}
-.search input{width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
-.search ul{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;max-height:50vh;overflow:auto}
-.search li{padding:6px 8px;border-radius:4px;cursor:pointer;display:flex;gap:8px;align-items:baseline;justify-content:space-between}
-.search li:hover{background:#3a2e20}
-.tools{display:flex;gap:6px;flex-wrap:wrap}
-.tbtn{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 10px;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
-.tbtn svg{width:16px;height:16px}
-.tbtn[aria-pressed="true"]{border-color:var(--gold);color:var(--gold);background:#2e2416}
+.mk{position:absolute;width:0;height:0}
+.mk button{position:absolute;left:0;top:0;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;border:0;background:transparent;cursor:pointer;
+  transform:scale(var(--inv,1));transform-origin:50% 50%;padding:0}
+.mk button::after{content:"";position:absolute;inset:7px;border-radius:50%;border:2px solid var(--gold);background:rgba(7,13,24,.35);
+  box-shadow:0 0 0 1px rgba(7,13,24,.7);opacity:0;transition:opacity .15s,inset .15s}
+#stage.show-mk .mk button::after{opacity:.85}
+.mk button:hover::after,.mk button:focus-visible::after,.mk.sel button::after{opacity:1;inset:4px;border-color:var(--ice);box-shadow:0 0 12px var(--ice)}
+.mk.cap button::after{border-width:2.5px}
 
-/* side panel */
-#panel{position:fixed;left:12px;top:calc(env(safe-area-inset-top,0px) + 64px);bottom:12px;width:310px;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;z-index:4}
-.tabs{display:flex;border-bottom:1px solid var(--line)}
-.tabs button{flex:1;background:none;border:0;padding:10px 4px;font-family:var(--display);font-size:15px;color:var(--muted);border-bottom:2px solid transparent}
-.tabs button[aria-selected="true"]{color:var(--gold);border-bottom-color:var(--gold)}
-.tabbody{overflow:auto;padding:12px;flex:1;min-height:0}
-.sec{margin-bottom:16px}
-.sec h3{font-family:var(--display);font-size:15px;margin:0 0 8px;color:var(--gold);font-weight:500;letter-spacing:.03em}
-.row{display:flex;align-items:center;gap:8px;padding:4px 0}
-.row .nm{flex:1;min-width:0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row .nm:hover{color:var(--gold)}
-.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.seg button{flex:1;background:none;border:0;padding:7px 4px;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:#3a2e20;color:var(--gold)}
-.chk{display:flex;gap:8px;align-items:center;padding:4px 0;cursor:pointer}
-.chk input{accent-color:var(--gold);width:16px;height:16px}
-.hint{color:var(--muted);font-size:12.5px;line-height:1.45}
-.fac{display:flex;gap:10px;align-items:center;padding:7px 6px;border-radius:6px;cursor:pointer}
-.fac:hover{background:#2c2318}
-.fac .nm{flex:1;min-width:0}
-.fac .nm b{display:block;font-weight:500;font-size:13.5px}
-.fac .nm span{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sw{width:14px;height:14px;border-radius:3px;border:1px solid #0008;flex:none}
-.sw.ln{height:4px;border:0;border-radius:2px;width:18px}
-.arms{flex:none;display:block}
-.bloc-h{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:10px 0 2px}
-.btn{background:#2e2416;border:1px solid var(--gold-dim);color:var(--parch);border-radius:6px;padding:7px 12px}
-.btn.pri{background:var(--gold);border-color:var(--gold);color:#1a130a;font-weight:700}
-.btn.danger{border-color:#7a2a2a;color:#f0b0b0;background:#2a1414}
-.btn.sm{padding:3px 9px;font-size:13px}
-.btn[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
-.btns{display:flex;gap:6px;flex-wrap:wrap}
-.field{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;min-width:0}
-.field span{font-size:12px;color:var(--muted)}
-.field input,.field select,.field textarea{background:#14100b;border:1px solid var(--line);border-radius:5px;padding:7px 8px;min-width:0}
-.field textarea{min-height:64px;resize:vertical}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.big{font-family:var(--display);font-size:26px;color:var(--gold);font-variant-numeric:tabular-nums}
-table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-table.t td{padding:4px 0;border-bottom:1px solid #3a2e20}
-table.t td:last-child{text-align:right}
+.rlabel{position:absolute;width:0;height:0;pointer-events:none}
+.rlabel>div{position:absolute;transform:translate(-50%,-50%) scale(var(--inv,1));display:flex;flex-direction:column;align-items:center;gap:4px;
+  opacity:0;transition:opacity .2s}
+.rlabel.on>div{opacity:1}
+.rlabel span{font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:.12em;color:#fff;white-space:nowrap;
+  text-shadow:0 0 6px #000,0 0 14px #000,0 2px 2px #000}
+.rlabel small{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);text-shadow:0 0 6px #000,0 0 4px #000;white-space:nowrap}
 
-/* card */
-#card{position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 64px);width:340px;max-height:calc(100% - 90px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;z-index:6;box-sizing:border-box}
-#card .x{position:absolute;right:8px;top:8px;background:none;border:0;color:var(--muted);font-size:20px;line-height:1;padding:4px 8px}
-.chead{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;padding-right:20px}
-.chead h2{font-family:var(--display);font-size:24px;margin:0;line-height:1.1;font-weight:700;text-wrap:balance}
-.chead .sub{color:var(--muted);font-size:13px;margin-top:2px}
-.kv{display:grid;grid-template-columns:96px 1fr;gap:6px 10px;margin:10px 0}
-.kv dt{color:var(--muted);font-size:12.5px}
-.kv dd{margin:0}
-.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid}
-.pill.ok{color:var(--ok);border-color:#3f5a33}.pill.warn{color:var(--warn);border-color:#6b4d1d}.pill.bad{color:var(--bad);border-color:#6b2826}
-.star{color:var(--blood)}
-.note{line-height:1.5;color:#e2d6b8;margin:8px 0 12px}
+/* Шапка */
+#top{position:fixed;left:16px;top:calc(16px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:10px;z-index:5;max-width:calc(100vw - 32px);width:300px}
+.brand{background:linear-gradient(180deg,rgba(12,22,38,.94),rgba(12,22,38,.86));border:1px solid var(--gold-dim);padding:12px 16px 10px;position:relative}
+.brand h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1;letter-spacing:.14em;color:var(--gold)}
+.brand p{margin:4px 0 0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.search{position:relative}
+.search input{width:100%;box-sizing:border-box;background:rgba(12,22,38,.94);border:1px solid var(--gold-dim);color:var(--text);padding:9px 12px;font:inherit;font-size:14px}
+.search input::placeholder{color:var(--muted)}
+.search input:focus{border-color:var(--ice);outline:none}
+#results{position:absolute;left:0;right:0;top:100%;margin:2px 0 0;padding:0;list-style:none;background:var(--panel);border:1px solid var(--gold-dim);max-height:50vh;overflow:auto}
+#results li button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;padding:8px 12px;cursor:pointer}
+#results li button:hover,#results li button:focus-visible{background:var(--panel-2)}
+#results small{color:var(--muted);white-space:nowrap}
+.toggles{display:flex;gap:0;border:1px solid var(--gold-dim);background:rgba(12,22,38,.94);width:max-content;max-width:100%;flex-wrap:wrap}
+.toggles button{background:none;border:0;padding:6px 12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.toggles button[aria-pressed="true"]{color:var(--abyss);background:var(--gold)}
 
-/* markers */
-.mk{position:absolute;left:0;top:0;pointer-events:auto;display:flex;flex-direction:column;align-items:center;cursor:pointer;border:0;background:none;padding:0;will-change:transform}
-.mk .ic{width:var(--s,22px);height:var(--s,22px);border-radius:50%;background:#1a140dE6;border:2px solid var(--c,#999);display:grid;place-items:center;box-shadow:0 1px 4px #000a;position:relative}
-.mk .ic svg{width:70%;height:70%;fill:var(--parch)}
-.mk .ic i{position:absolute;right:-5px;top:-6px;font-style:normal;color:var(--blood);font-size:12px;text-shadow:0 0 2px #000,0 0 2px #000}
-.mk .lb{margin-top:2px;font-family:var(--display);font-size:13px;color:var(--parch);text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;white-space:nowrap;pointer-events:none}
-.mk.cap .lb{font-size:14.5px;font-weight:700}
-.mk.sel .ic{border-color:var(--gold);box-shadow:0 0 0 3px #d9a84566,0 1px 4px #000}
-.mk.dim{opacity:.3}
-.editing .mk,.editing .coat{pointer-events:none}
-.coat{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;filter:drop-shadow(0 2px 3px #000c);border:0;background:none;padding:0}
-.rp{position:absolute;left:0;top:0;width:10px;height:10px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--gold);border:2px solid #1a130a}
-.rlab{position:absolute;left:5px;top:-22px;transform:translateX(-50%);background:#1a130aE6;border:1px solid var(--gold-dim);border-radius:4px;padding:1px 6px;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.hd{position:absolute;left:0;top:0;width:14px;height:14px;margin:-9px 0 0 -9px;border-radius:50%;background:#f0e5c9;border:2px solid var(--river-edge);pointer-events:auto;cursor:move;touch-action:none;box-shadow:0 1px 3px #000a}
-.hd.end{background:var(--gold)}
-.hd.mid{width:10px;height:10px;margin:-7px 0 0 -7px;background:#f0e5c955;border:2px dashed #f0e5c9;cursor:copy}
-.hd.on{background:var(--blood);border-color:#fff}
-#tip{position:fixed;pointer-events:none;background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12.5px;z-index:8;display:flex;gap:8px;align-items:center;max-width:260px}
+/* Масштаб */
+#scale{position:fixed;left:16px;background:rgba(12,22,38,.8);padding:6px 10px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text);
+  text-shadow:0 0 4px #000;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+#scale i{display:block;height:6px;border:1.5px solid var(--gold);border-top:0}
+#zoom{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;flex-direction:column;border:1px solid var(--gold-dim);background:rgba(12,22,38,.94)}
+#zoom button{width:38px;height:38px;background:none;border:0;cursor:pointer;font-size:20px;color:var(--gold)}
+#zoom button+button{border-top:1px solid var(--gold-dim)}
 
-#modebar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);background:var(--panel-solid);border:1px solid var(--gold-dim);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:center;z-index:7;width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;flex-wrap:wrap;justify-content:center}
-#modebar .msg{font-size:13.5px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-#modebar input,#modebar select{background:#14100b;border:1px solid var(--line);border-radius:5px;padding:5px 7px;min-width:0}
-#zoom{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;gap:6px;z-index:3}
-#zoom button{width:40px;height:40px;background:var(--panel);border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;font-size:18px}
-#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);background:var(--panel-solid);border:1px solid var(--gold-dim);border-radius:8px;padding:8px 14px;z-index:9;font-size:13.5px;max-width:calc(100% - 32px);box-sizing:border-box}
-#loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--ink);z-index:20;font-family:var(--display);font-size:22px;color:var(--gold);text-align:center}
-#loading small{display:block;font-family:var(--body);font-size:13px;color:var(--muted);margin-top:6px}
+/* Карточка при наведении */
+#hover{position:fixed;z-index:6;pointer-events:none;min-width:200px;max-width:280px;padding:12px 14px;background:linear-gradient(160deg,rgba(18,32,58,.97),rgba(7,13,24,.97));
+  border:1px solid var(--gold-dim);box-shadow:0 8px 30px rgba(0,0,0,.6)}
+#hover h3{margin:0;font-family:var(--font-display);font-size:21px;line-height:1.1;letter-spacing:.06em;color:var(--text)}
+#hover p{margin:3px 0 0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+#hover .faces{margin-top:10px}
 
-@media (max-width:760px){
-  .brand{font-size:17px}.brand small{display:none}
-  #panel{left:0;right:0;bottom:0;top:auto;width:auto;height:52%;border-radius:12px 12px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
-  #card{left:0;right:0;bottom:0;top:auto;width:auto;max-height:58%;border-radius:12px 12px 0 0;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px)}
-  .tbtn .tx{display:none}
-  .search{flex-basis:120px}
-  #zoom{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 110px)}
+/* Портреты */
+.faces{display:flex;gap:6px;flex-wrap:wrap}
+.face{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--gold-dim);background:linear-gradient(160deg,var(--panel-2),var(--abyss));
+  font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--gold);letter-spacing:.02em}
+.face.more{color:var(--muted);font-family:var(--font-body);font-size:12px;font-weight:500}
+
+/* Панель */
+#panel{position:fixed;top:0;right:0;bottom:0;width:var(--panel-w);z-index:7;background:var(--panel);border-left:1px solid var(--gold-dim);
+  box-shadow:-20px 0 50px rgba(0,0,0,.5);transform:translateX(102%);transition:transform .3s ease;display:flex;flex-direction:column}
+#panel.open{transform:none}
+#panel .close{position:absolute;left:-17px;top:50%;width:32px;height:32px;margin-top:-16px;transform:rotate(45deg);background:var(--panel);border:1px solid var(--gold);cursor:pointer;padding:0}
+#panel .close span{display:block;transform:rotate(-45deg);color:var(--gold);font-size:18px;line-height:30px}
+#pbody{overflow:auto;padding:0 24px calc(28px + env(safe-area-inset-bottom,0px));flex:1;min-height:0}
+.phead{margin:0 -24px;padding:calc(28px + env(safe-area-inset-top,0px)) 24px 18px;display:flex;gap:16px;align-items:center;
+  background:linear-gradient(180deg,var(--tint,rgba(200,170,110,.18)),transparent 90%)}
+.phead svg{flex:none;width:64px;height:76px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6))}
+.phead h2{margin:0;font-family:var(--font-display);font-weight:700;font-size:30px;line-height:1.02;letter-spacing:.06em;text-wrap:balance}
+.phead p{margin:6px 0 0;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.rule{height:1px;background:var(--gold-dim);margin:18px 0;position:relative}
+.rule::before,.rule::after{content:"";position:absolute;top:-3px;width:7px;height:7px;transform:rotate(45deg);background:var(--panel);border:1px solid var(--gold-dim)}
+.rule::before{left:-4px}.rule::after{right:-4px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin:0}
+.facts div{min-width:0}
+.facts dt{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.facts dd{margin:2px 0 0;font-weight:700;text-transform:uppercase;font-size:13px;letter-spacing:.05em;overflow-wrap:anywhere}
+.facts dd button{all:unset;cursor:pointer;color:var(--gold);border-bottom:1px solid var(--gold-dim)}
+.facts dd button:hover{color:var(--ice)}
+.facts dd button:focus-visible{outline:2px solid var(--ice)}
+.desc{margin:0;max-width:65ch}
+.sec h4{margin:0 0 8px;font-family:var(--font-display);font-size:19px;letter-spacing:.08em;color:var(--gold);font-weight:600}
+.chron{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.chron li{display:grid;grid-template-columns:3.2em 1fr;gap:8px}
+.chron b{color:var(--gold);font-variant-numeric:tabular-nums}
+.house{border-top:1px solid rgba(122,102,68,.45);padding:12px 0}
+.house:first-of-type{border-top:0;padding-top:0}
+.house h5{margin:0;font-size:15px;font-weight:700}
+.house p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.house ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.house li b{color:var(--text)}
+.house li span{color:var(--muted)}
+.more{display:inline-flex;gap:6px;align-items:center;background:none;border:0;padding:0;color:var(--ice);cursor:pointer;font-size:14px;letter-spacing:.04em}
+.more:hover{text-decoration:underline}
+.src{font-size:12px;color:var(--muted);margin-top:18px}
+.note{font-size:13px;color:var(--muted);font-style:italic}
+
+@media (max-width:640px){
+  #panel{top:auto;left:0;width:auto;height:60%;border-left:0;border-top:1px solid var(--gold-dim);transform:translateY(102%)}
+  #panel .close{left:50%;top:-17px;margin:0 0 0 -16px}
+  .phead{padding-top:26px}
+  #top{width:auto;right:16px}
+  .brand h1{font-size:22px}
+  #zoom{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-</head>
-<body>
-<div id="loading">Разворачиваю карту…<small>ваша карта, владения и реки</small></div>
-<div id="vp"><div id="world">
-  <img id="imgBase" src="base.jpg" alt="Карта Ойкумены" width="2035" height="4096">
-  <img id="imgPhys" src="phys.jpg" alt="" width="2035" height="4096" hidden>
-  <canvas id="fill" hidden></canvas>
-  <canvas id="borders"></canvas>
-  <svg id="lines" width="2035" height="4096" viewBox="0 0 2035 4096"></svg>
-</div></div>
-<div id="overlay"></div>
+<div id="stage" class="show-mk" aria-label="Карта Ойкумены">
+  <div id="world">
+    <img class="layer" id="imgBase" src="base.jpg" alt="Политическая карта Ойкумены">
+    <img class="layer" id="imgPhys" src="phys.jpg" alt="" style="opacity:0">
+    <canvas id="hl" width="508" height="1024"></canvas>
+    <div id="labels"></div>
+    <div id="markers"></div>
+  </div>
+</div>
 
 <header id="top">
-  <div class="brand">Атлас Ойкумены<small>Кара богов · Весна 119</small></div>
-  <div class="search">
-    <input id="q" type="search" placeholder="Найти город или владение" autocomplete="off" aria-label="Поиск по карте">
-    <ul id="qres" hidden></ul>
+  <div class="brand">
+    <h1>ОЙКУМЕНА</h1>
+    <p>Весна 119 г. от Кары богов</p>
   </div>
-  <div class="tools">
-    <button class="tbtn" id="bPanel" aria-pressed="true" title="Слои и державы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/></svg><span class="tx">Слои</span></button>
-    <button class="tbtn" id="bRiver" hidden title="Нарисовать реку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4c4 2 2 6 6 8s6 0 6 4-4 4-4 4"/></svg><span class="tx">Река</span></button>
-    <button class="tbtn" id="bRuler" aria-pressed="false" title="Линейка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2m1-5 2 2m1-5 2 2"/></svg><span class="tx">Линейка</span></button>
-    <button class="tbtn" id="bAdd" hidden title="Добавить поселение"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span class="tx">Поселение</span></button>
+  <div class="search">
+    <label for="q" hidden>Поиск</label>
+    <input id="q" type="search" placeholder="Найти город, владение, правителя" autocomplete="off">
+    <ul id="results" hidden></ul>
+  </div>
+  <div class="toggles" role="group" aria-label="Слои">
+    <button id="tPol" aria-pressed="true">Владения</button>
+    <button id="tPhys" aria-pressed="false">Рельеф</button>
+    <button id="tMk" aria-pressed="true">Метки</button>
   </div>
 </header>
 
-<aside id="panel" aria-label="Панель карты">
-  <div class="tabs" role="tablist">
-    <button role="tab" id="t-layers" aria-selected="true">Слои</button>
-    <button role="tab" id="t-lines" aria-selected="false">Реки</button>
-    <button role="tab" id="t-fac" aria-selected="false">Державы</button>
-    <button role="tab" id="t-ruler" aria-selected="false">Линейка</button>
-  </div>
-  <div class="tabbody" id="p-layers">
-    <div class="sec">
-      <h3>Вид карты</h3>
-      <div class="seg" id="modeSeg">
-        <button data-m="0" aria-pressed="true">Оригинал</button>
-        <button data-m="2" aria-pressed="false">Политическая</button>
-        <button data-m="1" aria-pressed="false">Без раскраски</button>
-      </div>
-      <p class="hint" style="margin:8px 0 0">«Оригинал» — ваша карта как есть. «Политическая» красит владения цветами из вкладки «Державы». «Без раскраски» показывает рельеф без цветов владений.</p>
-    </div>
-    <div class="sec">
-      <h3>Слои</h3>
-      <label class="chk"><input type="checkbox" id="lCities" checked> Поселения и подписи</label>
-      <label class="chk"><input type="checkbox" id="lArms"> Гербы владений</label>
-      <label class="chk"><input type="checkbox" id="lStates"> Государственные границы</label>
-      <label class="chk"><input type="checkbox" id="lProv"> Границы провинций</label>
-      <label class="chk"><input type="checkbox" id="lRivers" checked> Реки</label>
-      <label class="chk"><input type="checkbox" id="lRoads" checked> Дороги</label>
-      <label class="chk"><input type="checkbox" id="lSard"> Выделить всё, что связано с Сардами ★</label>
-    </div>
-    <div class="sec">
-      <h3>Управление</h3>
-      <p class="hint">Перетаскивайте карту мышью или пальцем, колесо или два пальца — масштаб.<br>Нажмите на город, чтобы открыть карточку; на землю — чтобы узнать, чья она; на реку — чтобы узнать её название и длину.</p>
-      <p class="hint" id="saveHint"></p>
-    </div>
-  </div>
-  <div class="tabbody" id="p-lines" hidden>
-    <div class="sec">
-      <h3 hidden>Нарисовать</h3>
-      <div class="btns" hidden><button class="btn pri" id="nRiver">+ Река</button><button class="btn" id="nRoad">+ Дорога</button></div>
-      <p class="hint" hidden>Два способа: <b>от руки</b> — ведите мышью или пальцем вдоль реки на карте, линия сгладится сама; <b>по точкам</b> — ставьте точки по течению, между ними будет плавная кривая. Готовую реку можно править: тянуть точки, добавлять новые через кружки посередине, удалять двойным нажатием.</p>
-    </div>
-    <div class="sec"><h3>Реки</h3><div id="riverList"></div></div>
-    <div class="sec"><h3>Дороги</h3><div id="roadList"></div></div>
-  </div>
-  <div class="tabbody" id="p-fac" hidden></div>
-  <div class="tabbody" id="p-ruler" hidden>
-    <div class="sec">
-      <h3>Расстояние</h3>
-      <div class="big" id="rTotal">—</div>
-      <p class="hint">Включите линейку и ставьте точки на карте.</p>
-      <table class="t" id="rDays"></table>
-      <div class="btns" style="margin-top:10px">
-        <button class="btn pri" id="rToggle">Включить линейку</button>
-        <button class="btn" id="rUndo">Убрать точку</button>
-        <button class="btn" id="rClear">Сбросить</button>
-      </div>
-    </div>
-    <div class="sec">
-      <h3>Масштаб</h3>
-      <p class="hint" id="scaleTxt"></p>
-      <button class="btn" id="bCalib">Откалибровать по двум точкам</button>
-    </div>
-    <div class="sec">
-      <h3>Скорость марша, км в день</h3>
-      <div class="grid3">
-        <label class="field"><span>Пехота</span><input type="number" id="spInf" min="1" step="1"></label>
-        <label class="field"><span>Конница</span><input type="number" id="spCav" min="1" step="1"></label>
-        <label class="field"><span>Обоз</span><input type="number" id="spBag" min="1" step="1"></label>
-      </div>
-    </div>
-  </div>
+<div id="scale" aria-hidden="true"><span id="scaleTxt">100 км</span><i id="scaleBar"></i></div>
+<div id="zoom"><button id="zIn" aria-label="Приблизить">+</button><button id="zOut" aria-label="Отдалить">−</button></div>
+
+<div id="hover" hidden></div>
+
+<aside id="panel" aria-label="Сведения" aria-hidden="true">
+  <button class="close" id="pClose" aria-label="Свернуть панель"><span>›</span></button>
+  <div id="pbody"></div>
 </aside>
 
-<section id="card" hidden aria-live="polite"></section>
-<div id="tip" hidden></div>
-<div id="modebar" hidden><span class="msg" id="modeMsg"></span><span class="btns" id="modeBtns"></span></div>
-<div id="zoom">
-  <button id="zIn" title="Приблизить" aria-label="Приблизить">+</button>
-  <button id="zOut" title="Отдалить" aria-label="Отдалить">−</button>
-  <button id="zFit" title="Вся карта" aria-label="Вся карта">⤢</button>
-  <button id="zHome" title="К землям Сардов" aria-label="К землям Сардов">⌂</button>
-</div>
-<div id="toast" hidden></div>
-
+<script src="data.js" charset="utf-8"></script>
 <script>
-(async function(){
+(function(){
+const D=window.OIK, MW=D.map.w, MH=D.map.h, MS=D.map.maskScale;
 const $=s=>document.querySelector(s);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toast(t,ms=2800){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>el.hidden=true,ms)}
-function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
-function pixels(img){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);return x.getImageData(0,0,img.width,img.height)}
+const stage=$('#stage'), world=$('#world');
+const stateById=Object.fromEntries(D.states.map(s=>[s.id,s]));
+const provByRid=Object.fromEntries(D.provinces.map(p=>[p.rid,p]));
+const setByName=Object.fromEntries(D.settlements.map(s=>[s.name,s]));
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dash=v=>(!v||v==='—')?'—':v;
 
-const [D,rImg]=await Promise.all([fetch('data.json').then(r=>r.json()),loadImg('regions.png')]);
-const MW=D.map.w, MH=D.map.h;
-const RP=pixels(rImg), RW=RP.width, RH=RP.height;
-const rAt=(px,py)=>{const x=Math.floor(px/MW*RW),y=Math.floor(py/MH*RH);return(x<0||y<0||x>=RW||y>=RH)?0:RP.data[(y*RW+x)*4]};
-
-const state={mode:0,showCities:true,showArms:false,states:false,prov:false,rivers:true,roads:true,sard:false,
-  tool:'view',ruler:[],calib:[],selCity:null,placing:null,edit:null};
-let cities=[],factions={},lines=[],settings=null;const regions=D.regions;
-const override={cities:{},factions:{},lines:{},settings:null};
-let db=null,canWrite=false;
-
-function rebuildData(){
-  factions={};for(const f of D.factions)factions[f.id]=structuredClone(f);
-  for(const[id,o]of Object.entries(override.factions)){if(o.deleted)delete factions[id];else factions[id]=Object.assign(factions[id]||{},o)}
-  const cm=new Map(D.cities.map(c=>[c.id,structuredClone(c)]));
-  for(const[id,o]of Object.entries(override.cities)){if(o.deleted)cm.delete(id);else cm.set(id,Object.assign(cm.get(id)||{id},o))}
-  cities=[...cm.values()];const baseIds=new Set(D.cities.map(c=>c.id));cities.forEach(c=>c._onMap=baseIds.has(c.id)&&!(override.cities[c.id]&&override.cities[c.id].name&&override.cities[c.id].name!==D.cities.find(b=>b.id===c.id).name));
-  const lm=new Map(D.lines.map(l=>[l.id,structuredClone(l)]));
-  for(const[id,o]of Object.entries(override.lines)){if(o.deleted)lm.delete(id);else lm.set(id,Object.assign(lm.get(id)||{id},o))}
-  lines=[...lm.values()];
-  settings=Object.assign(structuredClone(D.settings),override.settings||{});
+/* ---------- Герб ---------- */
+const CH={
+ sun:'<circle cx="50" cy="52" r="13"/><g stroke-width="5" stroke-linecap="round">'+[...Array(8)].map((_,i)=>{const a=i*Math.PI/4,x1=50+Math.cos(a)*19,y1=52+Math.sin(a)*19,x2=50+Math.cos(a)*27,y2=52+Math.sin(a)*27;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor"/>`}).join('')+'</g>',
+ flame:'<path d="M50 24c6 12 18 18 16 34-1 11-8 18-16 18s-16-7-16-18c0-8 5-12 8-17 1 6 4 9 7 9-3-9-2-17 1-26z"/>',
+ sword:'<path d="M47 22h6v38h-6z"/><path d="M36 58h28v5H36z"/><path d="M47 63h6v10h-6z"/><circle cx="50" cy="77" r="4"/>',
+ wave:'<path d="M24 46q6.5-8 13 0t13 0 13 0 13 0v7q-6.5 8-13 0t-13 0-13 0-13 0z"/><path d="M24 62q6.5-8 13 0t13 0 13 0 13 0v7q-6.5 8-13 0t-13 0-13 0-13 0z"/>',
+ star:'<path d="M50 24l7 17 18 1-14 11 5 18-16-10-16 10 5-18-14-11 18-1z"/>',
+ fang:'<path d="M34 30h32l-6 10-10 38-10-38z"/>',
+ tree:'<path d="M50 22l20 26h-9l13 16H54v14h-8V64H26l13-16h-9z"/>',
+ tower:'<path d="M36 34h6v6h5v-6h6v6h5v-6h6v12l-4 4v26H40V50l-4-4z"/>',
+ crown:'<path d="M28 66l-3-30 13 12 12-18 12 18 13-12-3 30z"/><path d="M28 70h44v6H28z"/>',
+ crescent:'<path d="M58 26a26 26 0 1 0 0 52a20 20 0 1 1 0-52z"/>',
+ horse:'<path d="M38 76l3-22c-6-2-9-8-7-14l12-12 2-6 5 6c9 4 14 12 14 22l-4 6-6-6-3 4 2 22h-6l-2-18-4 18z"/>',
+ none:''
+};
+function lum(hex){const n=parseInt(hex.slice(1),16);return(.299*(n>>16)+.587*((n>>8)&255)+.114*(n&255))/255}
+function arms(st,size){
+  const a=st&&st.arms; const f=a?a.field:'#3a3a3a'; const c=lum(f)>.55?'#1c1410':'#e8cf8a';
+  const ch=a?(CH[a.charge]||''):'';
+  return `<svg viewBox="0 0 100 118" width="${size||64}" aria-hidden="true">
+   <defs><linearGradient id="g${size}${st?st.id.length:0}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient></defs>
+   <path d="M10 8h80v46c0 30-20 48-40 58C30 102 10 84 10 54z" fill="${f}" stroke="#c8aa6e" stroke-width="5"/>
+   <g fill="${c}" style="color:${c}" transform="translate(0 4)">${ch}</g>
+   <path d="M10 8h80v46c0 30-20 48-40 58C30 102 10 84 10 54z" fill="url(#g${size}${st?st.id.length:0})"/>
+  </svg>`;
 }
-rebuildData();
 
-// ---------- view transform ----------
-const vp=$('#vp'),world=$('#world');
-const T={x:0,y:0,s:0.3};
-const toScreen=(px,py)=>[T.x+px*T.s,T.y+py*T.s];
-const toMap=(sx,sy)=>[(sx-T.x)/T.s,(sy-T.y)/T.s];
-const MINS=0.08,MAXS=4;
-let raf=0;function applyT(){world.style.transform=`translate(${T.x}px,${T.y}px) scale(${T.s})`;if(!raf)raf=requestAnimationFrame(()=>{raf=0;updateOverlay()})}
-function zoomAt(sx,sy,f){const ns=Math.min(MAXS,Math.max(MINS,T.s*f));const[mx,my]=toMap(sx,sy);T.s=ns;T.x=sx-mx*ns;T.y=sy-my*ns;applyT()}
-function centerOn(px,py,s){T.s=s??T.s;T.x=innerWidth/2-px*T.s;T.y=innerHeight/2-py*T.s;applyT()}
-let anim=null;
-function flyTo(px,py,s){const from={...T};const ts=s??Math.max(T.s,0.9);const to={s:ts,x:innerWidth/2-px*ts,y:innerHeight/2-py*ts};const t0=performance.now();
-  cancelAnimationFrame(anim);const step=now=>{const k=Math.min(1,(now-t0)/550),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;T.s=from.s+(to.s-from.s)*e;T.x=from.x+(to.x-from.x)*e;T.y=from.y+(to.y-from.y)*e;applyT();if(k<1)anim=requestAnimationFrame(step);else if(state.edit)buildHandles()};anim=requestAnimationFrame(step)}
-function fitAll(){const s=Math.min(innerWidth/1900,innerHeight/3000)*0.95;T.s=s;T.x=innerWidth/2-1000*s;T.y=innerHeight/2-1750*s;applyT();if(state.edit)buildHandles()}
+/* ---------- Люди ---------- */
+function initials(n){const p=n.replace(/[«»"()]/g,'').split(/\s+/).filter(w=>/^[А-ЯЁA-Z]/.test(w)&&!/^(Вождь|Королева|Король|Конунг|Стратиот|Великий|Понтифик|Жрица|Архонт)$/.test(w));return(p[0]?p[0][0]:'?')+(p[1]?p[1][0]:'')}
+function faces(list,max){
+  max=max||5; if(!list.length) return '';
+  const shown=list.slice(0,max).map(m=>`<div class="face" title="${esc(m.name)}">${esc(initials(m.name))}</div>`).join('');
+  return `<div class="faces">${shown}${list.length>max?`<div class="face more">+${list.length-max}</div>`:''}</div>`;
+}
+const houseMembers=h=>h==null?[]:D.houses[h].members;
+const houseName=h=>h==null?'—':D.houses[h].name.replace(/\s*\(.*\)/,'');
 
-// ---------- political overlay & borders (canvas at half resolution) ----------
-const CW=Math.round(MW/2),CH=Math.round(MH/2);
-const fillC=$('#fill'),bordC=$('#borders');
-for(const c of[fillC,bordC]){c.width=CW;c.height=CH;c.style.width=MW+'px';c.style.height=MH+'px'}
-const blocIdx={};
-function hex2rgb(h){h=(h||'#888').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255]}
-function drawOverlay(){
-  const col={},bloc={};let bi=1;
-  for(const[rid,r]of Object.entries(regions)){const f=factions[r.faction];if(!f)continue;col[rid]=hex2rgb(f.color);if(!(f.bloc in blocIdx))blocIdx[f.bloc]=bi++;bloc[rid]=blocIdx[f.bloc]}
-  const fx=fillC.getContext('2d'),bx=bordC.getContext('2d');
-  const fi=fx.createImageData(CW,CH),bi2=bx.createImageData(CW,CH);
-  const rid=(x,y)=>rAt((x+.5)*2,(y+.5)*2);
-  for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){
-    const r=rid(x,y),i=(y*CW+x)*4;if(!r)continue;
-    const c=col[r];if(c){fi.data[i]=c[0];fi.data[i+1]=c[1];fi.data[i+2]=c[2];fi.data[i+3]=255}
-    if(!state.states&&!state.prov)continue;
-    let prov=false,st=false;
-    for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const r2=rid(x+dx,y+dy);if(r2!==r){prov=true;if(bloc[r2]!==bloc[r])st=true}}
-    if(st&&state.states){bi2.data[i]=24;bi2.data[i+1]=16;bi2.data[i+2]=10;bi2.data[i+3]=235}
-    else if(prov&&state.prov){bi2.data[i]=250;bi2.data[i+1]=240;bi2.data[i+2]=210;bi2.data[i+3]=200}
+/* ---------- Вид ---------- */
+let k=1, tx=0, ty=0;
+function minK(){return Math.min(innerWidth/MW, innerHeight/MH)*0.95}
+function clamp(){
+  k=Math.max(minK(),Math.min(k,3));
+  const w=MW*k,h=MH*k;
+  tx = w<innerWidth ? (innerWidth-w)/2 : Math.min(0,Math.max(innerWidth-w,tx));
+  ty = h<innerHeight ? (innerHeight-h)/2 : Math.min(0,Math.max(innerHeight-h,ty));
+}
+function apply(){
+  clamp();
+  world.style.transform=`translate(${tx}px,${ty}px) scale(${k})`;
+  world.style.setProperty('--inv',(1/k).toFixed(4));
+  // масштабная линейка: 1 пиксель подложки ≈ 1 км
+  const steps=[10,25,50,100,200,500,1000]; let km=steps.find(s=>s*k>=70)||1000;
+  $('#scaleBar').style.width=(km*k)+'px'; $('#scaleTxt').textContent=km+' км';
+}
+function zoomAt(f,cx,cy){const nk=Math.max(minK(),Math.min(k*f,3)); tx=cx-(cx-tx)*nk/k; ty=cy-(cy-ty)*nk/k; k=nk; apply()}
+function centerOn(x,y,nk){
+  const pw=$('#panel').classList.contains('open')&&innerWidth>640?Math.min(420,innerWidth):0;
+  const ph=$('#panel').classList.contains('open')&&innerWidth<=640?innerHeight*.6:0;
+  k=nk||k; tx=(innerWidth-pw)/2-x*k; ty=(innerHeight-ph)/2-y*k; world.style.transition='transform .45s ease'; apply();
+  setTimeout(()=>world.style.transition='',460);
+}
+function fit(){k=minK(); const startK=Math.max(minK(), Math.min(innerWidth/MW*1.0, 0.6)); k=startK; tx=0;ty=0;
+  // начальный вид: обжитая часть материка
+  centerOn(900,1650,startK)}
+
+/* ---------- Маска областей ---------- */
+const mc=document.createElement('canvas'); mc.width=508; mc.height=1024;
+let mask=null; const maskImg=new Image(); maskImg.src='regions.png';
+maskImg.onload=()=>{const c=mc.getContext('2d'); c.drawImage(maskImg,0,0); mask=c.getImageData(0,0,mc.width,mc.height)};
+const hl=$('#hl'); hl.width=508; hl.height=1024; const hctx=hl.getContext('2d'); const hlCache={};
+function ridAt(x,y){ if(!mask) return 0; const mx=Math.floor(x/MS), my=Math.floor(y/MS); if(mx<0||my<0||mx>=mask.width||my>=mask.height) return 0; return mask.data[(my*mask.width+mx)*4]; }
+function hlFor(rid){
+  if(hlCache[rid]) return hlCache[rid];
+  const W=mask.width,H=mask.height,src=mask.data,img=hctx.createImageData(W,H),o=img.data;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x; if(src[i*4]!==rid) continue;
+    const edge=x===0||y===0||x===W-1||y===H-1||src[(i-1)*4]!==rid||src[(i+1)*4]!==rid||src[(i-W)*4]!==rid||src[(i+W)*4]!==rid;
+    const j=i*4; if(edge){o[j]=245;o[j+1]=238;o[j+2]=220;o[j+3]=255}else{o[j]=255;o[j+1]=250;o[j+2]=235;o[j+3]=70}}
+  return hlCache[rid]=img;
+}
+let curRid=0, pinnedRid=0;
+function showRegion(rid){
+  if(rid===curRid) return; curRid=rid; hctx.clearRect(0,0,hl.width,hl.height);
+  document.querySelectorAll('.rlabel.on').forEach(e=>e.classList.remove('on'));
+  const r=rid||pinnedRid; if(!r||!mask) return;
+  hctx.putImageData(hlFor(r),0,0);
+  const el=document.getElementById('rl'+r); if(el) el.classList.add('on');
+}
+
+/* ---------- Метки и подписи ---------- */
+const labels=$('#labels');
+D.provinces.forEach(p=>{const st=stateById[p.state]; const d=document.createElement('div'); d.className='rlabel'; d.id='rl'+p.rid;
+  d.style.left=p.cx+'px'; d.style.top=p.cy+'px';
+  d.innerHTML=`<div>${arms(st,46)}<span>${esc(p.name.toUpperCase())}</span><small>${esc(st.title)}</small></div>`; labels.appendChild(d)});
+const mkWrap=$('#markers'); const mkEls={};
+D.settlements.forEach(s=>{const d=document.createElement('div'); d.className='mk'+(s.capital?' cap':''); d.style.left=s.x+'px'; d.style.top=s.y+'px';
+  const b=document.createElement('button'); b.setAttribute('aria-label',s.name+', '+s.type); d.appendChild(b); mkWrap.appendChild(d); mkEls[s.name]=d;
+  b.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse') showHover(s,b)});
+  b.addEventListener('pointerleave',()=>hideHover());
+  b.addEventListener('focus',()=>showHover(s,b)); b.addEventListener('blur',hideHover);
+  b.addEventListener('click',e=>{e.stopPropagation(); hideHover(); openSettlement(s)});
+});
+
+/* ---------- Карточка при наведении ---------- */
+const hov=$('#hover');
+function showHover(s,el){
+  const st=stateById[s.state];
+  hov.innerHTML=`<h3>${esc(s.name)}</h3><p>${esc(s.type)} · ${esc(st.title)}</p>${faces(houseMembers(s.house),5)}`;
+  hov.hidden=false; const r=el.getBoundingClientRect(); const w=hov.offsetWidth,h=hov.offsetHeight;
+  let x=r.right+10, y=r.top+r.height/2-h/2; if(x+w>innerWidth-8) x=r.left-w-10; y=Math.max(8,Math.min(innerHeight-h-8,y));
+  hov.style.left=x+'px'; hov.style.top=y+'px';
+}
+function hideHover(){hov.hidden=true}
+
+/* ---------- Панель ---------- */
+const panel=$('#panel'), pbody=$('#pbody');
+function openPanel(html,tint){
+  pbody.innerHTML=html; pbody.scrollTop=0; panel.style.setProperty('--tint',tint);
+  panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
+  pbody.querySelectorAll('[data-state]').forEach(b=>b.addEventListener('click',()=>openState(stateById[b.dataset.state],true)));
+  pbody.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>openSettlement(setByName[b.dataset.set],true)));
+}
+function closePanel(){panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); pinnedRid=0; curRid=-1; showRegion(0); selMk(null)}
+$('#pClose').addEventListener('click',closePanel);
+addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();$('#results').hidden=true}});
+function tintOf(st){const c=st.arms?st.arms.field:st.color||'#c8aa6e'; return c+'55'}
+function selMk(name){document.querySelectorAll('.mk.sel').forEach(e=>e.classList.remove('sel')); if(name&&mkEls[name]) mkEls[name].classList.add('sel')}
+const rule='<div class="rule"></div>';
+
+function openSettlement(s,fly){
+  const st=stateById[s.state]; const h=s.house; const people=houseMembers(h);
+  const desc=[s.note&&s.note!=='—'?s.note:''].filter(Boolean).join(' ');
+  const extra=[['Тип',s.type],['Состояние',dash(s.status)],['Дороги',dash(s.roads)]];
+  openPanel(`
+   <div class="phead">${arms(st,64)}<div><h2>${esc(s.name)}</h2><p>${esc(s.type)}${s.capital&&s.type!=='столица'?' · столица':''}</p></div></div>
+   ${people.length?faces(people,7):''}
+   ${rule}
+   <dl class="facts">
+     <div><dt>Название</dt><dd>${esc(s.name)}</dd></div>
+     <div><dt>Провинция</dt><dd>${esc(dash(s.province))}</dd></div>
+     <div><dt>Правитель</dt><dd>${esc(dash(s.ruler))}</dd></div>
+     <div><dt>Племя/Дом</dt><dd>${esc(houseName(h))}</dd></div>
+     <div><dt>Государство</dt><dd>${st.id==='99_Ничьи_земли'?'Ничьи земли':`<button data-state="${esc(st.id)}">${esc(st.title)}</button>`}</dd></div>
+     ${extra.map(([a,b])=>`<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join('')}
+   </dl>
+   ${desc?rule+`<p class="desc">${esc(desc)}</p>`:''}
+   ${h!=null?rule+houseBlock(h):''}
+   ${st.id!=='99_Ничьи_земли'?`<p><button class="more" data-state="${esc(st.id)}">Узнать больше: ${esc(st.title)} ↗</button></p>`:''}
+  `,tintOf(st));
+  selMk(s.name); pinnedRid=s.rid; curRid=-1; showRegion(0);
+  if(fly) centerOn(s.x,s.y,Math.max(k,1));
+}
+function houseBlock(h){const H=D.houses[h];
+  return `<div class="house"><h5>${esc(H.name)}</h5>${H.desc?`<p>${esc(H.desc)}</p>`:''}
+    <ul>${H.members.map(m=>`<li><b>${esc(m.name)}</b>${m.text?` <span>${esc(m.text.replace(/^,\s*/,''))}</span>`:''}</li>`).join('')}</ul></div>`}
+function openState(st,fly){
+  const provs=D.provinces.filter(p=>p.state===st.id);
+  const sets=D.settlements.filter(s=>s.state===st.id);
+  const people=st.houses.flatMap(h=>D.houses[h].members);
+  const cul=st.culture?D.cultures[st.culture]:null;
+  const faith=st.faith||(cul?cul.faith:null);
+  openPanel(`
+   <div class="phead">${arms(st,64)}<div><h2>${esc(st.title)}</h2><p>${esc(st.full!==st.title?st.full.split('·').slice(1).join('·').trim()||st.bloc:st.bloc)}</p></div></div>
+   ${faces(people,7)}
+   ${rule}
+   <dl class="facts">
+     <div><dt>Правитель</dt><dd>${esc(dash(st.ruler))}</dd></div>
+     <div><dt>Столица</dt><dd>${setByName[st.capital]?`<button data-set="${esc(st.capital)}">${esc(st.capital)}</button>`:esc(dash(st.capital))}</dd></div>
+     <div><dt>Блок</dt><dd>${esc(dash(st.bloc))}</dd></div>
+     <div><dt>Площадь</dt><dd>${st.area?esc(st.area)+' тыс. км²':'—'}</dd></div>
+     <div><dt>Культура</dt><dd>${cul?esc(cul.name):'—'}</dd></div>
+     <div><dt>Вера</dt><dd>${faith?esc(faith):'—'}</dd></div>
+   </dl>
+   ${st.note?rule+`<p class="desc">${esc(st.note)}</p>`:''}
+   ${cul?`<p class="desc note">${esc(cul.text)}</p>`:''}
+   ${rule}
+   <div class="sec"><h4>Поселения</h4><p class="desc">${sets.map(s=>`<button class="more" data-set="${esc(s.name)}">${s.capital?'★ ':''}${esc(s.name)}</button>`).join(' · ')}</p></div>
+   ${st.chronicle.length?rule+`<div class="sec"><h4>Хроника</h4><ul class="chron">${st.chronicle.map(c=>{const m=c.match(/^(\d+):\s*(.*)$/);return m?`<li><b>${m[1]}</b><span>${esc(m[2])}</span></li>`:`<li><b></b><span>${esc(c)}</span></li>`}).join('')}</ul></div>`:''}
+   ${st.houses.length?rule+`<div class="sec"><h4>Дома и рода</h4>${st.houses.map(houseBlock).join('')}</div>`:''}
+   ${st.neighbors?rule+`<div class="sec"><h4>Соседи</h4><p class="desc">${esc(st.neighbors)}</p></div>`:''}
+   <p class="src">Сведения из сводок проекта: государства, персонажи, культура.</p>
+  `,tintOf(st));
+  selMk(null); pinnedRid=provs[0]?provs[0].rid:0; curRid=-1; showRegion(0);
+  if(fly&&provs[0]) centerOn(provs[0].cx,provs[0].cy);
+}
+
+/* ---------- Перетаскивание, масштаб ---------- */
+const ptrs=new Map(); let moved=false, pinch0=null, last=null;
+stage.addEventListener('pointerdown',e=>{if(e.target.closest('.mk')) return; stage.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=false; last={x:e.clientX,y:e.clientY};
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()]; pinch0={d:Math.hypot(a.x-b.x,a.y-b.y),k}} });
+stage.addEventListener('pointermove',e=>{
+  if(ptrs.has(e.pointerId)){
+    const p=ptrs.get(e.pointerId); const dx=e.clientX-p.x, dy=e.clientY-p.y; ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){ if(Math.abs(e.clientX-last.x)+Math.abs(e.clientY-last.y)>4){moved=true; stage.classList.add('dragging')} tx+=dx; ty+=dy; apply(); }
+    else if(ptrs.size===2&&pinch0){moved=true; const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); zoomAt(pinch0.k*d/pinch0.d/k,(a.x+b.x)/2,(a.y+b.y)/2)}
+    return;
   }
-  fx.putImageData(fi,0,0);bx.putImageData(bi2,0,0);
+  if(e.pointerType!=='mouse') return;
+  const x=(e.clientX-tx)/k, y=(e.clientY-ty)/k; showRegion(e.target.closest('.mk')?curRid:ridAt(x,y));
+});
+function up(e){ if(!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId); if(ptrs.size<2) pinch0=null; stage.classList.remove('dragging');
+  if(!moved&&ptrs.size===0){ const x=(e.clientX-tx)/k, y=(e.clientY-ty)/k; const r=ridAt(x,y); const p=provByRid[r];
+    if(p){ openState(stateById[p.state]); pinnedRid=r; curRid=-1; showRegion(r) } else closePanel(); }
 }
+stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
+stage.addEventListener('pointerleave',()=>{curRid=-1; showRegion(0)});
+stage.addEventListener('wheel',e=>{e.preventDefault(); zoomAt(Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY)},{passive:false});
+stage.addEventListener('dblclick',e=>zoomAt(1.8,e.clientX,e.clientY));
+$('#zIn').onclick=()=>zoomAt(1.4,innerWidth/2,innerHeight/2);
+$('#zOut').onclick=()=>zoomAt(1/1.4,innerWidth/2,innerHeight/2);
+addEventListener('resize',apply);
 
-// ---------- smooth curves ----------
-function catmull(pts,seg=6){
-  if(pts.length<3)return pts.map(p=>[p[0],p[1]]);
-  const out=[];
-  for(let i=0;i<pts.length-1;i++){
-    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||pts[i+1];
-    for(let k=0;k<seg;k++){const t=k/seg,t2=t*t,t3=t2*t;
-      out.push([.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
-                .5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)])}
-  }
-  out.push(pts[pts.length-1]);return out;
-}
-function pathD(pts,smooth=true){
-  if(pts.length<2)return'';
-  if(!smooth||pts.length<3)return'M'+pts.map(p=>(+p[0]).toFixed(1)+','+(+p[1]).toFixed(1)).join('L');
-  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for(let i=0;i<pts.length-1;i++){const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||pts[i+1];
-    const c1=[p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6],c2=[p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6];
-    d+=`C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`}
-  return d;
-}
-function simplify(pts,eps){
-  if(pts.length<3)return pts;
-  const dd=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;if(!l)return Math.hypot(p[0]-a[0],p[1]-a[1]);let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy)};
-  let mx=0,idx=0;for(let i=1;i<pts.length-1;i++){const d=dd(pts[i],pts[0],pts[pts.length-1]);if(d>mx){mx=d;idx=i}}
-  if(mx>eps){const a=simplify(pts.slice(0,idx+1),eps),b=simplify(pts.slice(idx),eps);return a.slice(0,-1).concat(b)}
-  return[pts[0],pts[pts.length-1]];
-}
-function distToPolyline(p,pl){let m=1e9;for(let i=0;i<pl.length-1;i++){const a=pl[i],b=pl[i+1];const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;let t=l?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l:0;t=Math.max(0,Math.min(1,t));m=Math.min(m,Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy))}return m}
+/* ---------- Слои ---------- */
+function setLayer(phys){$('#imgPhys').style.opacity=phys?1:0; $('#tPhys').setAttribute('aria-pressed',phys); $('#tPol').setAttribute('aria-pressed',!phys)}
+$('#tPol').onclick=()=>setLayer(false); $('#tPhys').onclick=()=>setLayer(true);
+$('#tMk').onclick=()=>{const on=stage.classList.toggle('show-mk'); $('#tMk').setAttribute('aria-pressed',on)};
 
-// ---------- lines (rivers, roads) ----------
-const RIVER_W={1:{n:'Ручей',w:2.5},2:{n:'Река',w:4.5},3:{n:'Большая река',w:7.5}};
-const svg=$('#lines');
-function lineSvg(l,d){
-  if(l.kind==='river'){const w=(RIVER_W[l.width]||RIVER_W[2]).w;
-    return`<path d="${d}" fill="none" stroke="#183a5c" stroke-width="${w+2.2}" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><path d="${d}" fill="none" stroke="#4a8fcb" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`}
-  return`<path d="${d}" fill="none" stroke="#2a1a0c" stroke-width="${l.width>=3?3.2:2.2}" stroke-dasharray="${l.width>=3?'12 7':'7 6'}" stroke-linecap="round" opacity=".92"/>`;
-}
-function renderLines(){
-  let h='';
-  for(const l of lines){
-    if(state.edit&&state.edit.id===l.id)continue;
-    if(l.kind==='river'&&!state.rivers)continue;if(l.kind!=='river'&&!state.roads)continue;
-    h+=lineSvg(l,pathD(l.points,l.smooth!==false));
-  }
-  const e=state.edit;
-  if(e&&e.points.length>1){const d=pathD(e.points,true);const w=e.kind==='river'?(RIVER_W[e.width]||RIVER_W[2]).w:2.5;
-    h+=`<path d="${d}" fill="none" stroke="#d9a845" stroke-width="${w+6}" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>`+lineSvg(e,d)}
-  if(e&&e.stroke&&e.stroke.length>1)h+=`<path d="${pathD(e.stroke,false)}" fill="none" stroke="#c0244e" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
-  const rp=state.tool==='calib'?state.calib:state.ruler;
-  if(rp.length>1)h+=`<path d="${pathD(rp,false)}" fill="none" stroke="#d9a845" stroke-width="3" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>`;
-  svg.innerHTML=h;
-}
+/* ---------- Поиск ---------- */
+const q=$('#q'), res=$('#results');
+const index=[...D.settlements.map(s=>({t:s.name,sub:s.type+' · '+(stateById[s.state].id==='99_Ничьи_земли'?'ничьи земли':stateById[s.state].title),hay:(s.name+' '+s.ruler).toLowerCase(),go:()=>openSettlement(s,true)})),
+  ...D.states.filter(s=>s.id!=='99_Ничьи_земли').map(s=>({t:s.title,sub:'владение',hay:(s.full+' '+s.ruler).toLowerCase(),go:()=>openState(s,true)})),
+  ...D.houses.flatMap(h=>h.members.map(m=>{const st=D.states.find(s=>s.houses.includes(D.houses.indexOf(h)));return st?{t:m.name,sub:h.name.replace(/\s*\(.*\)/,''),hay:m.name.toLowerCase(),go:()=>openState(st,true)}:null}).filter(Boolean))];
+q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase(); if(v.length<2){res.hidden=true;return}
+  const hits=index.filter(i=>i.hay.includes(v)).slice(0,12);
+  res.innerHTML=hits.length?hits.map((h,i)=>`<li><button data-i="${index.indexOf(h)}"><span>${esc(h.t)}</span><small>${esc(h.sub)}</small></button></li>`).join(''):'<li><button disabled><span>Ничего не найдено</span></button></li>';
+  res.hidden=false; res.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{index[+b.dataset.i].go(); res.hidden=true; q.blur()})});
+q.addEventListener('keydown',e=>{if(e.key==='Enter'){const b=res.querySelector('[data-i]'); if(b) b.click()}});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.search')) res.hidden=true});
 
-// ---------- arms ----------
-const SHIELD="M2,2 H98 V52 C98,88 50,114 50,114 C50,114 2,88 2,52 Z";
-function starPts(cx,cy,R,r,n){let s='';for(let i=0;i<n*2;i++){const a=-Math.PI/2+i*Math.PI/n,rr=i%2?r:R;s+=(cx+Math.cos(a)*rr).toFixed(1)+','+(cy+Math.sin(a)*rr).toFixed(1)+' '}return s}
-const CHARGES={none:()=>'',
-  star:c=>`<polygon points="${starPts(50,56,22,9,5)}" fill="${c}"/>`,
-  sun:c=>`<polygon points="${starPts(50,56,24,13,12)}" fill="${c}"/><circle cx="50" cy="56" r="11" fill="${c}"/>`,
-  crescent:c=>`<path d="M60,34 A24,24 0 1,0 60,80 A18,18 0 1,1 60,34Z" fill="${c}"/>`,
-  tower:c=>`<path d="M34,84 V46 H39 V38 H45 V46 H48 V38 H52 V46 H55 V38 H61 V46 H66 V84 Z" fill="${c}"/><rect x="45" y="66" width="10" height="18" rx="5" fill="#0006"/>`,
-  fang:c=>`<path d="M36,34 Q50,42 64,34 Q60,62 50,88 Q40,62 36,34Z" fill="${c}"/>`,
-  wave:c=>`<path d="M24,46 q6.5,-8 13,0 t13,0 t13,0 t13,0 M24,60 q6.5,-8 13,0 t13,0 t13,0 t13,0 M24,74 q6.5,-8 13,0 t13,0 t13,0 t13,0" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/>`,
-  tree:c=>`<path d="M50,30 L68,58 H59 L72,78 H28 L41,58 H32 Z" fill="${c}"/><rect x="46" y="78" width="8" height="10" fill="${c}"/>`,
-  crown:c=>`<path d="M30,76 L27,42 L40,56 L50,36 L60,56 L73,42 L70,76 Z" fill="${c}"/><rect x="30" y="78" width="40" height="6" fill="${c}"/>`,
-  sword:c=>`<path d="M47.5,26 H52.5 V68 H62 V73 H52.5 V88 H47.5 V73 H38 V68 H47.5 Z" fill="${c}"/>`,
-  horse:c=>`<path d="M37,36 V60 A13,13 0 0,0 63,60 V36" fill="none" stroke="${c}" stroke-width="9"/>`,
-  flame:c=>`<path d="M50,28 C64,46 68,58 62,74 C58,84 42,84 38,74 C34,62 43,55 46,46 C48,56 52,58 55,53 C57,46 53,38 50,28Z" fill="${c}"/>`,
-  cross:c=>`<path d="M44,30 H56 V50 H74 V62 H56 V90 H44 V62 H26 V50 H44Z" fill="${c}"/>`};
-const CHARGE_NAMES={none:'без фигуры',star:'звезда',sun:'солнце',crescent:'полумесяц',tower:'башня',fang:'клык',wave:'волны',tree:'древо',crown:'корона',sword:'меч',horse:'подкова',flame:'пламя',cross:'крест'};
-const DIVS={plain:'однотонный','per-pale':'рассечён','per-fess':'пересечён','per-bend':'скошен',chevron:'стропило',quarterly:'четверочастный',saltire:'андреевский крест',chief:'глава'};
-let armsN=0;
-function armsSVG(a,size=40){a=a||{};const id='cl'+(armsN++);const f=a.field||'#777',f2=a.field2||'#ddd';
-  const div={plain:'','per-pale':`<rect x="50" y="0" width="50" height="120" fill="${f2}"/>`,'per-fess':`<rect x="0" y="58" width="100" height="62" fill="${f2}"/>`,'per-bend':`<polygon points="0,0 100,0 100,120" fill="${f2}"/>`,chevron:`<polygon points="0,96 50,52 100,96 100,74 50,30 0,74" fill="${f2}"/>`,quarterly:`<rect x="50" y="0" width="50" height="58" fill="${f2}"/><rect x="0" y="58" width="50" height="62" fill="${f2}"/>`,saltire:`<path d="M0,0 L100,120 M100,0 L0,120" stroke="${f2}" stroke-width="16"/>`,chief:`<rect x="0" y="0" width="100" height="28" fill="${f2}"/>`}[a.div]||'';
-  const ch=(CHARGES[a.charge]||CHARGES.none)(a.chargeColor||'#eee');
-  return`<svg class="arms" width="${size}" height="${size*1.16}" viewBox="0 0 100 116" aria-hidden="true"><defs><clipPath id="${id}"><path d="${SHIELD}"/></clipPath></defs><g clip-path="url(#${id})"><rect width="100" height="120" fill="${f}"/>${div}${a.div==='chief'?`<g transform="translate(0,8) scale(1 .9)">${ch}</g>`:ch}</g><path d="${SHIELD}" fill="none" stroke="#120d08" stroke-width="4"/></svg>`}
-
-// ---------- markers ----------
-const ICONS={capital:'<path d="M3 21V10l3-2v3l3-2v3l3-3 3 3V9l3 2V8l3 2v11zM6 5l2-3 2 3-2 1zm8 0 2-3 2 3-2 1z"/>',city:'<path d="M3 21V9h3v2h2V9h3v2h2V9h3v2h2V9h3v12h-8v-5h-4v5z"/>',fort:'<path d="M7 22V9H5V4h3v2h2V4h4v2h2V4h3v5h-2v13h-4v-5h-2v5z"/>',tower:'<path d="M9 22V8L12 2l3 6v14zM11 12h2v3h-2z"/>',village:'<path d="M3 12 12 4l9 8h-2v9h-5v-6h-4v6H5v-9z"/>',camp:'<path d="M2 20 12 4l10 16h-7l-3-6-3 6z"/>',holy:'<path d="M12 2c3 4 5 6 5 10a5 5 0 0 1-10 0c0-2 1-3 2-5 0 2 1 3 2 3 1-3 0-5 1-8zM5 20h14v2H5z"/>',site:'<path d="M5 3l7 7 7-7 2 2-7 7 7 7-2 2-7-7-7 7-2-2 7-7-7-7z"/>'};
-const TYPE_NAMES={capital:'Столица',city:'Город',fort:'Крепость',tower:'Башня',village:'Поселение',camp:'Стойбище',holy:'Святое место',site:'Особое место'};
-const isSard=c=>c.star||/сард|амал/i.test((c.ruler||'')+(c.note||''));
-const overlay=$('#overlay');
-let markerEls=new Map(),coatEls=[],rulerEls=[],handleEls=[];
-function buildMarkers(){
-  for(const el of markerEls.values())el.remove();markerEls.clear();
-  for(const c of cities){const f=factions[c.faction]||factions.free||{color:'#999'};
-    const b=document.createElement('button');b.className='mk'+(c.type==='capital'?' cap':'');b.type='button';
-    b.style.setProperty('--c',f.color);b.style.setProperty('--s',c.type==='capital'?'26px':(c.type==='village'||c.type==='site'?'18px':'22px'));
-    b.innerHTML=`<span class="ic"><svg viewBox="0 0 24 24">${ICONS[c.type]||ICONS.city}</svg>${c.star?'<i>★</i>':''}</span><span class="lb">${esc(c.name)}</span>`;
-    b.setAttribute('aria-label',c.name);
-    b.addEventListener('click',e=>{e.stopPropagation();if(state.tool!=='view'){mapTap(c.x,c.y);return}openCity(c.id)});
-    b.addEventListener('pointerdown',e=>e.stopPropagation());
-    overlay.appendChild(b);markerEls.set(c.id,b)}
-  buildCoats();
-}
-function regionCentroids(){const acc={};for(let y=0;y<RH;y+=2)for(let x=0;x<RW;x+=2){const r=RP.data[(y*RW+x)*4];if(!r)continue;(acc[r]=acc[r]||[0,0,0]);acc[r][0]+=x;acc[r][1]+=y;acc[r][2]++}
-  const out={};for(const[r,a]of Object.entries(acc))out[r]={x:a[0]/a[2]*MW/RW,y:a[1]/a[2]*MH/RH,n:a[2]};return out}
-const CENT=regionCentroids();
-function buildCoats(){coatEls.forEach(e=>e.remove());coatEls=[];const best={};
-  for(const[rid,r]of Object.entries(regions)){const c=CENT[rid];if(!c)continue;if(!best[r.faction]||best[r.faction].n<c.n)best[r.faction]={...c,rid}}
-  for(const[fid,c]of Object.entries(best)){const f=factions[fid];if(!f)continue;const b=document.createElement('button');b.className='coat';b.type='button';b.innerHTML=armsSVG(f.arms,32);b.title=f.name;
-    b.addEventListener('click',e=>{e.stopPropagation();openRegion(+c.rid)});b.addEventListener('pointerdown',e=>e.stopPropagation());b._w=[c.x,c.y];overlay.appendChild(b);coatEls.push(b)}}
-function updateOverlay(){
-  const W=innerWidth,H=innerHeight;
-  for(const c of cities){const el=markerEls.get(c.id);if(!el)continue;
-    if(!state.showCities){el.style.display='none';continue}
-    const[x,y]=toScreen(c.x,c.y);
-    const minor=!(c.type==='capital'||c.star||state.selCity===c.id);
-    if(x<-80||y<-60||x>W+80||y>H+60||(T.s<0.22&&minor)){el.style.display='none';continue}
-    el.style.display='';const sc=Math.max(0.7,Math.min(1.15,0.55+T.s*0.6));
-    el.style.transform=`translate(${x}px,${y}px) translate(-50%,-12px) scale(${sc.toFixed(3)})`;
-    el.querySelector('.lb').style.visibility=(state.selCity===c.id||(state.sard&&isSard(c))||(state.mode!==0&&(T.s>0.38||c.type==='capital'))||(state.mode===0&&!c._onMap&&T.s>0.38))?'visible':'hidden';
-    el.classList.toggle('dim',(state.sard&&!isSard(c))||state.tool==='editLine');el.classList.toggle('sel',state.selCity===c.id)}
-  for(const b of coatEls){if(!state.showArms){b.style.display='none';continue}const[x,y]=toScreen(b._w[0],b._w[1]);b.style.display='';b.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%)`}
-  const pts=state.tool==='calib'?state.calib:state.ruler;
-  rulerEls.forEach((e,i)=>{const q=pts[i];if(!q){e.style.display='none';return}const[x,y]=toScreen(q[0],q[1]);e.style.display='';e.style.transform=`translate(${x}px,${y}px)`});
-  handleEls.forEach(h=>{const[x,y]=toScreen(h._p[0],h._p[1]);h.style.transform=`translate(${x}px,${y}px)`});
-}
-
-// ---------- line editing ----------
-function buildHandles(){
-  handleEls.forEach(h=>h.remove());handleEls=[];
-  const e=state.edit;if(!e||e.freehand)return;
-  const P=e.points;
-  P.forEach((p,i)=>{const h=document.createElement('div');h.className='hd'+(i===0||i===P.length-1?' end':'');h._p=p;h._i=i;h.title='Тяните, чтобы сдвинуть. Двойное нажатие — удалить точку';attachDrag(h,false);overlay.appendChild(h);handleEls.push(h)});
-  if(T.s>0.18)for(let i=0;i<P.length-1;i++){const m=[(P[i][0]+P[i+1][0])/2,(P[i][1]+P[i+1][1])/2];
-    if(Math.hypot(P[i][0]-P[i+1][0],P[i][1]-P[i+1][1])*T.s<28)continue;
-    const h=document.createElement('div');h.className='hd mid';h._p=m;h._i=i+1;h.title='Тяните или нажмите, чтобы добавить точку';attachDrag(h,true);overlay.appendChild(h);handleEls.push(h)}
-  updateOverlay();
-}
-function pushUndo(){const e=state.edit;if(!e)return;e.undo.push(JSON.stringify(e.points));if(e.undo.length>100)e.undo.shift()}
-function attachDrag(h,isMid){
-  let lastTap=0;
-  h.addEventListener('pointerdown',ev=>{
-    ev.stopPropagation();ev.preventDefault();const e=state.edit;if(!e)return;
-    const now=performance.now();
-    if(!isMid&&now-lastTap<350){if(e.points.length>2){pushUndo();e.points.splice(h._i,1);renderLines();buildHandles()}else toast('В линии должно остаться минимум две точки');return}
-    lastTap=now;pushUndo();
-    const idx=h._i;if(isMid)e.points.splice(idx,0,[h._p[0],h._p[1]]);
-    h.setPointerCapture(ev.pointerId);h.classList.add('on');
-    const mv=m=>{const[px,py]=toMap(m.clientX,m.clientY);e.points[idx]=[Math.round(px*10)/10,Math.round(py*10)/10];h._p=e.points[idx];h.style.transform=`translate(${m.clientX}px,${m.clientY}px)`;renderLines()};
-    const up=()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);buildHandles();renderLines()};
-    h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
-    if(isMid)renderLines();
-  });
-}
-function startLine(kind){
-  if(canWrite===false){toast('У вас доступ только для просмотра');return}
-  closeCard();setTool('view');
-  state.edit={id:'l'+Date.now().toString(36),isNew:true,kind,name:'',width:2,points:[],undo:[],freehand:true};
-  setTool('editLine');editBar();renderLines();
-  toast(kind==='river'?'Ведите реку по карте от истока к устью. Двумя пальцами или колесом — двигать и масштабировать.':'Ведите дорогу по карте',4500);
-}
-function editLine(id){
-  const l=lines.find(x=>x.id===id);if(!l)return;
-  if(canWrite===false){toast('У вас доступ только для просмотра');return}
-  closeCard();setTool('view');
-  state.edit={id:l.id,isNew:false,kind:l.kind,name:l.name,width:l.width||2,points:l.points.map(p=>[p[0],p[1]]),undo:[],freehand:false};
-  setTool('editLine');editBar();renderLines();
-  const xs=l.points.map(p=>p[0]),ys=l.points.map(p=>p[1]);
-  const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),100);
-  flyTo((Math.min(...xs)+Math.max(...xs))/2,(Math.min(...ys)+Math.max(...ys))/2,Math.min(1.6,Math.max(0.25,Math.min(innerWidth,innerHeight)*0.7/span)));
-}
-function editBar(){
-  const e=state.edit;
-  $('#modeMsg').innerHTML=`<input id="eLnName" placeholder="${e.kind==='river'?'Название реки':'Название дороги'}" value="${esc(e.name)}" style="width:150px" aria-label="Название">
-   <select id="eLnW" aria-label="Размер">${e.kind==='river'?Object.entries(RIVER_W).map(([k,v])=>`<option value="${k}"${+k===+e.width?' selected':''}>${v.n}</option>`).join(''):`<option value="2"${e.width<3?' selected':''}>Дорога</option><option value="3"${e.width>=3?' selected':''}>Тракт</option>`}</select>`;
-  const bb=$('#modeBtns');bb.innerHTML='';
-  const mk=(t,fn,cls='')=>{const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;bb.appendChild(b);return b};
-  const fh=mk('От руки',()=>{e.freehand=true;sync();buildHandles();toast(e.points.length?'Ведите от любого конца линии — продолжение пристыкуется':'Ведите линию по карте')});
-  const pt=mk('По точкам',()=>{e.freehand=false;sync();buildHandles();toast('Нажимайте на карту — точки добавятся к концу. Точки можно тянуть.')});
-  const sync=()=>{fh.setAttribute('aria-pressed',String(!!e.freehand));pt.setAttribute('aria-pressed',String(!e.freehand))};sync();
-  mk('Отменить',()=>{const u=e.undo.pop();if(u){e.points=JSON.parse(u);renderLines();buildHandles()}});
-  mk('Развернуть',()=>{pushUndo();e.points.reverse();renderLines();buildHandles();toast('Начало и конец поменялись местами')});
-  if(!e.isNew)mk('Удалить',function(){if(this.dataset.a){save('lines',e.id,{deleted:true});setTool('view')}else{this.dataset.a=1;this.textContent='Точно удалить?'}},'danger');
-  mk('Отмена',()=>setTool('view'));
-  mk('Сохранить',()=>{
-    if(e.points.length<2){toast('Нарисуйте хотя бы короткий отрезок');return}
-    const o={id:e.id,name:$('#eLnName').value.trim()||(e.kind==='river'?'Безымянная река':'Дорога'),kind:e.kind,width:+$('#eLnW').value,points:e.points.map(p=>[Math.round(p[0]*10)/10,Math.round(p[1]*10)/10]),smooth:true};
-    setTool('view');save('lines',e.id,o);toast('Сохранено: '+o.name)},'pri');
-  $('#eLnW').onchange=ev=>{e.width=+ev.target.value;renderLines()};
-  $('#eLnName').oninput=ev=>{e.name=ev.target.value};
-  $('#modebar').hidden=false;
-}
-
-// ---------- cards ----------
-const card=$('#card');
-function statusPill(s){if(!s)return'<span class="pill ok">Цело</span>';const cls=/уничтож|разруш|погиб/i.test(s)?'bad':/осад|разграб|разор|взят|штурм|раскол|ослаб|анклав|проверк/i.test(s)?'warn':'ok';return`<span class="pill ${cls}">${esc(s)}</span>`}
-function openCity(id){
-  const c=cities.find(x=>x.id===id);if(!c)return;state.selCity=id;
-  const f=factions[c.faction]||{};const reg=regions[rAt(c.x,c.y)];
-  card.innerHTML=`<button class="x" aria-label="Закрыть">×</button>
-   <div class="chead">${armsSVG(f.arms,46)}<div><h2>${esc(c.name)} ${c.star?'<span class="star" title="Связано с Сардами">★</span>':''}</h2><div class="sub">${TYPE_NAMES[c.type]||'Город'}${reg?' · '+esc(reg.name):''}</div></div></div>
-   <dl class="kv"><dt>Правит</dt><dd>${esc(c.ruler||'—')}</dd><dt>Владение</dt><dd><a href="#" data-fac style="color:var(--gold)">${esc(f.name||'—')}</a></dd>
-   <dt>Держава</dt><dd>${esc(f.bloc||'—')}</dd><dt>Глава</dt><dd>${esc(f.leader||'—')}</dd><dt>Состояние</dt><dd>${statusPill(c.status)}</dd></dl>
-   ${c.note?`<p class="note">${esc(c.note)}</p>`:''}
-   <div class="btns"><button class="btn" data-a="measure">Мерить отсюда</button>${canWrite!==false?'<button class="btn" data-a="edit">Изменить</button>':''}</div>`;
-  card.hidden=false;card.querySelector('.x').onclick=closeCard;
-  card.querySelector('[data-fac]').onclick=ev=>{ev.preventDefault();showTab('fac');openFac(c.faction,false)};
-  card.querySelector('[data-a=measure]').onclick=()=>{setTool('ruler');state.ruler=[[c.x,c.y]];afterRuler();closeCard()};
-  const eb=card.querySelector('[data-a=edit]');if(eb)eb.onclick=()=>editCity(c);
-  updateOverlay();
-}
-function openRegion(rid){
-  const r=regions[rid];if(!r){closeCard();return}const f=factions[r.faction]||{};state.selCity=null;
-  const cs=cities.filter(c=>rAt(c.x,c.y)===rid);
-  card.innerHTML=`<button class="x" aria-label="Закрыть">×</button>
-   <div class="chead">${armsSVG(f.arms,46)}<div><h2>${esc(r.name)}</h2><div class="sub">${esc(f.name||'')}</div></div></div>
-   <dl class="kv"><dt>Держава</dt><dd>${esc(f.bloc||'—')}</dd><dt>Глава</dt><dd>${esc(f.leader||'—')}</dd><dt>Столица</dt><dd>${esc(f.capital||'—')}</dd></dl>
-   ${f.note?`<p class="note">${esc(f.note)}</p>`:''}
-   ${cs.length?`<div class="bloc-h">Поселения</div><div>${cs.map(c=>`<a href="#" data-c="${c.id}" style="color:var(--parch);display:inline-block;margin:3px 10px 3px 0">${esc(c.name)}${c.star?' <span class="star">★</span>':''}</a>`).join('')}</div>`:''}
-   <div class="btns" style="margin-top:12px"><button class="btn" data-a="fac">Открыть владение</button></div>`;
-  card.hidden=false;card.querySelector('.x').onclick=closeCard;
-  card.querySelectorAll('[data-c]').forEach(a=>a.onclick=ev=>{ev.preventDefault();const c=cities.find(x=>x.id===a.dataset.c);flyTo(c.x,c.y);openCity(c.id)});
-  card.querySelector('[data-a=fac]').onclick=()=>{showTab('fac');openFac(r.faction,false)};
-}
-function closeCard(){card.hidden=true;state.selCity=null;updateOverlay()}
-function facOptions(sel){return Object.values(factions).map(f=>`<option value="${esc(f.id)}"${f.id===sel?' selected':''}>${esc(f.name)}</option>`).join('')}
-function editCity(c,isNew=false){
-  state.selCity=c.id;
-  card.innerHTML=`<button class="x" aria-label="Закрыть">×</button>
-  <div class="chead"><div><h2>${isNew?'Новое поселение':'Правка: '+esc(c.name)}</h2><div class="sub">Изменения увидят все, кто открывает карту</div></div></div>
-  <label class="field"><span>Название</span><input id="eName" value="${esc(c.name)}"></label>
-  <div class="grid2"><label class="field"><span>Тип</span><select id="eType">${Object.entries(TYPE_NAMES).map(([k,v])=>`<option value="${k}"${k===c.type?' selected':''}>${v}</option>`).join('')}</select></label>
-  <label class="field"><span>Состояние</span><input id="eStatus" value="${esc(c.status||'')}" placeholder="Цело"></label></div>
-  <label class="field"><span>Владение</span><select id="eFac">${facOptions(c.faction)}</select></label>
-  <label class="field"><span>Кто правит</span><input id="eRuler" value="${esc(c.ruler||'')}"></label>
-  <label class="field"><span>Заметка</span><textarea id="eNote">${esc(c.note||'')}</textarea></label>
-  <label class="chk"><input type="checkbox" id="eStar"${c.star?' checked':''}> Связано с Сардами ★</label>
-  <div class="btns" style="margin-top:10px"><button class="btn pri" id="eSave">Сохранить</button><button class="btn" id="eMove">Переместить</button>${isNew?'':'<button class="btn danger" id="eDel">Удалить</button>'}</div>`;
-  card.hidden=false;
-  card.querySelector('.x').onclick=()=>{if(isNew){cities=cities.filter(x=>x.id!==c.id);buildMarkers()}closeCard()};
-  $('#eSave').onclick=async()=>{const o={id:c.id,name:$('#eName').value.trim()||'Без названия',type:$('#eType').value,status:$('#eStatus').value.trim(),faction:$('#eFac').value,ruler:$('#eRuler').value.trim(),note:$('#eNote').value.trim(),star:$('#eStar').checked,x:Math.round(c.x),y:Math.round(c.y)};await save('cities',c.id,o);openCity(c.id)};
-  $('#eMove').onclick=()=>{state.placing={id:c.id,isNew};setTool('place');modeBar('Нажмите на карту, куда перенести «'+(c.name||'поселение')+'»',[['Отмена',()=>setTool('view')]])};
-  const del=$('#eDel');if(del)del.onclick=()=>{del.textContent='Точно удалить?';del.onclick=async()=>{await save('cities',c.id,{deleted:true});closeCard()}};
-}
-
-// ---------- factions ----------
-function renderFac(){
-  const p=$('#p-fac');const byBloc={};for(const f of Object.values(factions))(byBloc[f.bloc]=byBloc[f.bloc]||[]).push(f);
-  const order=Object.keys(byBloc).sort((a,b)=>a==='Империя'?-1:b==='Империя'?1:a.localeCompare(b,'ru'));
-  p.innerHTML=`<p class="hint" style="margin-top:0">Нажмите на владение, чтобы показать его, изменить цвет, главу или герб.</p>`+order.map(b=>`<div class="bloc-h">${esc(b)}</div>`+byBloc[b].map(f=>`<div class="fac" data-f="${esc(f.id)}">${armsSVG(f.arms,26)}<span class="sw" style="background:${f.color}"></span><div class="nm"><b>${esc(f.name)}</b><span>${esc(f.leader)}</span></div></div>`).join('')).join('')+(canWrite!==false?`<div class="btns" style="margin-top:12px"><button class="btn" id="fNew">+ Новое владение</button></div>`:'');
-  p.querySelectorAll('.fac').forEach(el=>el.onclick=()=>openFac(el.dataset.f,true));
-  const nb=$('#fNew');if(nb)nb.onclick=()=>{const id='f'+Date.now().toString(36);factions[id]={id,name:'Новое владение',bloc:'—',color:'#888888',leader:'',capital:'',arms:{field:'#888888',field2:'#dddddd',div:'plain',charge:'star',chargeColor:'#ffffff'},note:''};openFac(id,false)};
-}
-function openFac(fid,fly){
-  const f=factions[fid];if(!f)return;
-  const rids=Object.entries(regions).filter(([k,r])=>r.faction===fid).map(([k])=>+k);
-  if(fly&&rids.length){const c=rids.map(r=>CENT[r]).filter(Boolean).sort((a,b)=>b.n-a.n)[0];if(c)flyTo(c.x,c.y,0.35)}
-  const a=f.arms||{},ro=canWrite===false?' disabled':'';
-  card.innerHTML=`<button class="x" aria-label="Закрыть">×</button>
-   <div class="chead"><div id="armsPrev">${armsSVG(a,56)}</div><div><h2>${esc(f.name)}</h2><div class="sub">${esc(f.bloc)}</div></div></div>
-   ${f.note?`<p class="note">${esc(f.note)}</p>`:''}
-   <label class="field"><span>Название</span><input id="fName" value="${esc(f.name)}"${ro}></label>
-   <div class="grid2"><label class="field"><span>Держава / союз</span><input id="fBloc" value="${esc(f.bloc)}"${ro}></label><label class="field"><span>Цвет на карте</span><input type="color" id="fColor" value="${f.color}"${ro}></label></div>
-   <label class="field"><span>Глава</span><input id="fLeader" value="${esc(f.leader)}"${ro}></label>
-   <label class="field"><span>Столица</span><input id="fCap" value="${esc(f.capital)}"${ro}></label>
-   <div class="bloc-h">Герб</div>
-   <div class="grid2"><label class="field"><span>Поле</span><input type="color" id="aF" value="${a.field||'#777777'}"${ro}></label><label class="field"><span>Второй цвет</span><input type="color" id="aF2" value="${a.field2||'#dddddd'}"${ro}></label>
-   <label class="field"><span>Деление</span><select id="aDiv"${ro}>${Object.entries(DIVS).map(([k,v])=>`<option value="${k}"${k===a.div?' selected':''}>${v}</option>`).join('')}</select></label>
-   <label class="field"><span>Фигура</span><select id="aCh"${ro}>${Object.entries(CHARGE_NAMES).map(([k,v])=>`<option value="${k}"${k===a.charge?' selected':''}>${v}</option>`).join('')}</select></label>
-   <label class="field"><span>Цвет фигуры</span><input type="color" id="aCC" value="${a.chargeColor||'#ffffff'}"${ro}></label></div>
-   <label class="field"><span>Заметка</span><textarea id="fNote"${ro}>${esc(f.note||'')}</textarea></label>
-   ${canWrite!==false?'<div class="btns"><button class="btn pri" id="fSave">Сохранить</button></div>':''}`;
-  card.hidden=false;card.querySelector('.x').onclick=closeCard;
-  const read=()=>({field:$('#aF').value,field2:$('#aF2').value,div:$('#aDiv').value,charge:$('#aCh').value,chargeColor:$('#aCC').value});
-  ['aF','aF2','aDiv','aCh','aCC'].forEach(id=>$('#'+id).addEventListener('input',()=>$('#armsPrev').innerHTML=armsSVG(read(),56)));
-  $('#fColor').addEventListener('change',ev=>{factions[fid].color=ev.target.value;drawOverlay();if(state.mode!==2)setMode(2)});
-  const sv=$('#fSave');if(sv)sv.onclick=async()=>{const o={id:fid,name:$('#fName').value.trim()||f.name,bloc:$('#fBloc').value.trim()||'—',color:$('#fColor').value,leader:$('#fLeader').value.trim(),capital:$('#fCap').value.trim(),arms:read(),note:$('#fNote').value.trim()};await save('factions',fid,o);toast('Владение сохранено')};
-}
-
-// ---------- line lists ----------
-function renderLineLists(){
-  const row=l=>`<div class="row"><span class="sw ln" style="background:${l.kind==='river'?'#4a8fcb':'#2a1a0c'};height:${l.kind==='river'?2+(+l.width||2):3}px"></span><span class="nm" data-go="${esc(l.id)}">${esc(l.name)}</span>${canWrite!==false?`<button class="btn sm" data-ed="${esc(l.id)}">Править</button>`:''}</div>`;
-  const rv=lines.filter(l=>l.kind==='river'),rd=lines.filter(l=>l.kind!=='river');
-  $('#riverList').innerHTML=rv.map(row).join('')||'<p class="hint">Рек пока нет.</p>';
-  $('#roadList').innerHTML=rd.map(row).join('')||'<p class="hint">Дорог пока нет.</p>';
-  for(const el of document.querySelectorAll('#p-lines [data-ed]'))el.onclick=()=>editLine(el.dataset.ed);
-  for(const el of document.querySelectorAll('#p-lines [data-go]'))el.onclick=()=>{const l=lines.find(x=>x.id===el.dataset.go);if(!l)return;const m=l.points[Math.floor(l.points.length/2)];flyTo(m[0],m[1],0.6)};
-}
-
-// ---------- persistence ----------
-async function save(col,id,obj){
-  if(col==='settings')override.settings=obj;else override[col][id]=obj;
-  applyAll();
-  if(!db){toast('Сохранено только в этом окне — общая база недоступна');return}
-  try{await db.collection(col).doc(id).set(obj)}
-  catch(e){if(e&&e.code==='invalid_argument'){canWrite=false;toast('У вас доступ только для просмотра — изменения не сохранены')}else toast('Не удалось сохранить: '+(e&&e.message||'ошибка'))}
-}
-function applyAll(){rebuildData();drawOverlay();buildMarkers();renderLines();renderLineLists();renderFac();afterRuler();updateOverlay()}
-(async()=>{
-  try{
-    throw 0;
-    db=await claude.use('db');const user=await claude.use('user');
-    if(user){const c=await user.can('data.write');if(c===false)canWrite=false;else if(c===true)canWrite=true}
-    if(!db){$('#saveHint').textContent='Правки сейчас хранятся только в этом окне.';return}
-    $('#saveHint').textContent=canWrite===false?'У вас доступ только для просмотра.':'Правки сохраняются и видны всем, кто открывает карту.';
-    let pend=null;const later=()=>{clearTimeout(pend);pend=setTimeout(()=>{if(state.edit){rebuildData();renderLineLists();buildMarkers();updateOverlay()}else applyAll()},60)};
-    for(const col of['cities','factions','lines'])db.collection(col).onSnapshot(s=>{const m={};s.docs.forEach(d=>m[d.id]=d.data());override[col]=m;later()},()=>{});
-    db.collection('settings').doc('main').onSnapshot(s=>{override.settings=s.exists?s.data():null;later();setTimeout(syncSpeeds,80)},()=>{});
-  }catch(e){$('#saveHint').textContent='Карта открыта только для просмотра.'}
+fit();
 })();
-
-// ---------- ruler ----------
-function pxDist(p){let d=0;for(let i=1;i<p.length;i++)d+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return d}
-function fmtKm(k){return k>=100?Math.round(k).toLocaleString('ru-RU')+' км':k.toFixed(1).replace('.',',')+' км'}
-function afterRuler(){
-  rulerEls.forEach(e=>e.remove());rulerEls=[];
-  const pts=state.tool==='calib'?state.calib:state.ruler;
-  pts.forEach(()=>{const e=document.createElement('div');e.className='rp';overlay.appendChild(e);rulerEls.push(e)});
-  if(state.tool!=='calib'&&pts.length>1){let acc=0;for(let i=1;i<pts.length;i++){acc+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);const l=document.createElement('div');l.className='rlab';l.textContent=fmtKm(acc*settings.kmPerPx);rulerEls[i].appendChild(l)}}
-  const km=pxDist(state.ruler)*settings.kmPerPx;
-  $('#rTotal').textContent=state.ruler.length>1?fmtKm(km):'—';
-  const sp=settings.speeds;
-  $('#rDays').innerHTML=state.ruler.length>1?[['Пехота',sp.infantry],['Конница',sp.cavalry],['Обоз',sp.baggage]].map(([n,v])=>`<tr><td>${n}</td><td>${(km/v).toFixed(1).replace('.',',')} дн.</td></tr>`).join(''):'';
-  $('#scaleTxt').textContent=`1 пиксель карты = ${String(+(+settings.kmPerPx).toFixed(3)).replace('.',',')} км.${settings.calibrated?'':' Масштаб условный — откалибруйте по известному расстоянию.'}`;
-  renderLines();updateOverlay();
-}
-function syncSpeeds(){$('#spInf').value=settings.speeds.infantry;$('#spCav').value=settings.speeds.cavalry;$('#spBag').value=settings.speeds.baggage}
-syncSpeeds();
-for(const[id,k]of[['spInf','infantry'],['spCav','cavalry'],['spBag','baggage']])$('#'+id).addEventListener('change',e=>{const v=Math.max(1,+e.target.value||1);const s=Object.assign({},settings);s.speeds=Object.assign({},s.speeds,{[k]:v});save('settings','main',s)});
-
-// ---------- tools ----------
-function modeBar(msg,btns){const mb=$('#modebar');if(!msg){mb.hidden=true;return}$('#modeMsg').textContent=msg;const bb=$('#modeBtns');bb.innerHTML='';for(const[t,fn,pri]of btns){const b=document.createElement('button');b.className='btn sm'+(pri?' pri':'');b.textContent=t;b.onclick=fn;bb.appendChild(b)}mb.hidden=false}
-function setTool(t){
-  const wasEdit=state.tool==='editLine';
-  state.tool=t;$('#bRuler').setAttribute('aria-pressed',String(t==='ruler'));$('#rToggle').textContent=t==='ruler'?'Выключить линейку':'Включить линейку';
-  if(t!=='editLine'){state.edit=null;handleEls.forEach(h=>h.remove());handleEls=[]}
-  if(t==='view'){modeBar(null);state.placing=null}
-  if(t==='ruler')modeBar('Линейка: ставьте точки на карте',[['Убрать точку',()=>{state.ruler.pop();afterRuler()}],['Готово',()=>setTool('view'),1]]);
-  if(t==='calib'){state.calib=[];modeBar('Масштаб: отметьте две точки с известным расстоянием',[['Отмена',()=>setTool('view')]])}
-  vp.classList.toggle('cross',t!=='view');overlay.classList.toggle('editing',t==='editLine');
-  if(wasEdit||t==='editLine')renderLines();
-  afterRuler();
-}
-function mapTap(px,py){
-  if(state.tool==='ruler'){state.ruler.push([px,py]);afterRuler();return true}
-  if(state.tool==='calib'){
-    state.calib.push([px,py]);afterRuler();
-    if(state.calib.length===2){const dpx=pxDist(state.calib);
-      $('#modeMsg').innerHTML='Сколько км между точками? <input id="calKm" type="number" min="0.1" step="0.1" style="width:90px">';
-      const bb=$('#modeBtns');bb.innerHTML='';const ok=document.createElement('button');ok.className='btn sm pri';ok.textContent='Применить';bb.appendChild(ok);
-      const cancel=document.createElement('button');cancel.className='btn sm';cancel.textContent='Отмена';cancel.onclick=()=>setTool('view');bb.appendChild(cancel);
-      setTimeout(()=>$('#calKm').focus(),50);
-      ok.onclick=()=>{const km=+$('#calKm').value;if(!(km>0)){toast('Введите расстояние в км');return}const s=Object.assign({},settings,{kmPerPx:km/dpx,calibrated:true});setTool('view');save('settings','main',s);toast('Масштаб обновлён')}}
-    return true}
-  if(state.tool==='place'&&state.placing){const c=cities.find(x=>x.id===state.placing.id);const isNew=state.placing.isNew;if(c){c.x=Math.round(px);c.y=Math.round(py)}setTool('view');buildMarkers();updateOverlay();if(c)editCity(c,isNew);return true}
-  if(state.tool==='addCity'){const id='c'+Date.now().toString(36);const r=regions[rAt(px,py)];const c={id,name:'',type:'city',faction:r?r.faction:'free',ruler:'',status:'',note:'',star:false,x:Math.round(px),y:Math.round(py)};cities.push(c);buildMarkers();setTool('view');editCity(c,true);updateOverlay();setTimeout(()=>$('#eName')&&$('#eName').focus(),50);return true}
-  if(state.tool==='editLine'&&state.edit&&!state.edit.freehand){pushUndo();state.edit.points.push([Math.round(px*10)/10,Math.round(py*10)/10]);renderLines();buildHandles();return true}
-  if(state.tool==='editLine')return true;
-  return false;
-}
-function lineAt(px,py){
-  let best=null,bd=10/T.s;
-  for(const l of lines){if(l.kind==='river'&&!state.rivers)continue;if(l.kind!=='river'&&!state.roads)continue;
-    const d=distToPolyline([px,py],catmull(l.points,6));if(d<bd){bd=d;best=l}}
-  return best;
-}
-$('#bRiver').onclick=()=>{showTab('lines',innerWidth>760);startLine('river')};
-$('#nRiver').onclick=()=>startLine('river');$('#nRoad').onclick=()=>startLine('road');
-$('#bRuler').onclick=()=>{if(state.tool==='ruler')setTool('view');else{setTool('ruler');showTab('ruler',innerWidth>760)}};
-$('#rToggle').onclick=$('#bRuler').onclick;
-$('#rUndo').onclick=()=>{state.ruler.pop();afterRuler()};$('#rClear').onclick=()=>{state.ruler=[];afterRuler()};
-$('#bCalib').onclick=()=>setTool('calib');
-$('#bAdd').onclick=()=>{if(canWrite===false){toast('У вас доступ только для просмотра');return}setTool('addCity');modeBar('Нажмите на карту, где стоит новое поселение',[['Отмена',()=>setTool('view')]])};
-
-// ---------- panel ----------
-function showTab(t,open=true){for(const k of['layers','lines','fac','ruler']){$('#t-'+k).setAttribute('aria-selected',String(k===t));$('#p-'+k).hidden=k!==t}if(open){$('#panel').hidden=false;$('#bPanel').setAttribute('aria-pressed','true')}}
-for(const k of['layers','lines','fac','ruler'])$('#t-'+k).onclick=()=>showTab(k);
-$('#bPanel').onclick=()=>{const p=$('#panel');p.hidden=!p.hidden;$('#bPanel').setAttribute('aria-pressed',String(!p.hidden))};
-function setMode(m){state.mode=m;setTimeout(updateOverlay,0);$('#imgBase').hidden=m!==0;$('#imgPhys').hidden=m===0;$('#fill').hidden=m!==2;document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.m===m)))}
-document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>setMode(+b.dataset.m));
-const bind=(id,fn)=>$('#'+id).addEventListener('change',e=>fn(e.target.checked));
-bind('lCities',v=>{state.showCities=v;updateOverlay()});bind('lArms',v=>{state.showArms=v;updateOverlay()});
-bind('lStates',v=>{state.states=v;drawOverlay()});bind('lProv',v=>{state.prov=v;drawOverlay()});
-bind('lRivers',v=>{state.rivers=v;renderLines()});bind('lRoads',v=>{state.roads=v;renderLines()});
-bind('lSard',v=>{state.sard=v;updateOverlay();if(v){const a=cities.find(c=>c.id==='alosard');if(a)flyTo(a.x+60,a.y+40,0.55)}});
-
-// ---------- search ----------
-const q=$('#q'),qres=$('#qres');
-q.addEventListener('input',()=>{const s=q.value.trim().toLowerCase();if(!s){qres.hidden=true;return}
-  const cs=cities.filter(c=>c.name.toLowerCase().includes(s)).slice(0,8).map(c=>({t:'c',id:c.id,name:c.name,sub:(factions[c.faction]||{}).name||''}));
-  const rs=cities.filter(c=>(c.ruler||'').toLowerCase().includes(s)&&!c.name.toLowerCase().includes(s)).slice(0,5).map(c=>({t:'c',id:c.id,name:c.name,sub:'правит: '+c.ruler}));
-  const ls=lines.filter(l=>l.name.toLowerCase().includes(s)).slice(0,5).map(l=>({t:'l',id:l.id,name:l.name,sub:l.kind==='river'?'река':'дорога'}));
-  const fs=Object.values(factions).filter(f=>f.name.toLowerCase().includes(s)||(f.leader||'').toLowerCase().includes(s)).slice(0,5).map(f=>({t:'f',id:f.id,name:f.name,sub:f.leader}));
-  const all=[...cs,...rs,...ls,...fs];
-  qres.innerHTML=all.map(r=>`<li data-t="${r.t}" data-id="${esc(r.id)}"><b style="font-weight:500">${esc(r.name)}</b><span class="hint">${esc(r.sub||'')}</span></li>`).join('')||'<li class="hint">Ничего не найдено</li>';qres.hidden=false;
-  qres.querySelectorAll('li[data-id]').forEach(li=>li.onclick=()=>{qres.hidden=true;q.value='';q.blur();const id=li.dataset.id;
-    if(li.dataset.t==='c'){const c=cities.find(x=>x.id===id);flyTo(c.x,c.y);openCity(id)}
-    else if(li.dataset.t==='l'){const l=lines.find(x=>x.id===id);const m=l.points[Math.floor(l.points.length/2)];flyTo(m[0],m[1],0.6)}
-    else{showTab('fac',innerWidth>760);openFac(id,true)}})});
-q.addEventListener('keydown',e=>{if(e.key==='Enter'){const li=qres.querySelector('li[data-id]');if(li)li.click()}if(e.key==='Escape')qres.hidden=true});
-
-// ---------- pointer: pan, pinch, tap, freehand ----------
-const ptrs=new Map();let gesture=null;const tip=$('#tip');let hoverT=0;
-vp.addEventListener('pointerdown',e=>{
-  if(e.button===2||e.button===1){gesture={type:'pan',sx:e.clientX,sy:e.clientY,tx:T.x,ty:T.y,t:0,moved:true};ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});vp.setPointerCapture(e.pointerId);return}
-  vp.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});qres.hidden=true;tip.hidden=true;
-  if(ptrs.size===1){
-    const ed=state.edit;
-    if(state.tool==='editLine'&&ed&&ed.freehand){gesture={type:'draw'};ed.stroke=[toMap(e.clientX,e.clientY)]}
-    else gesture={type:'pan',sx:e.clientX,sy:e.clientY,tx:T.x,ty:T.y,t:performance.now(),moved:false};
-  }else if(ptrs.size===2){
-    if(gesture&&gesture.type==='draw'&&state.edit){state.edit.stroke=null;renderLines()}
-    const[a,b]=[...ptrs.values()];gesture={type:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y)||1,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,s:T.s,tx:T.x,ty:T.y};
-  }
-});
-vp.addEventListener('pointermove',e=>{
-  if(!ptrs.has(e.pointerId)){hover(e);return}
-  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(!gesture)return;
-  if(gesture.type==='pan'){const dx=e.clientX-gesture.sx,dy=e.clientY-gesture.sy;if(Math.hypot(dx,dy)>5){gesture.moved=true;vp.classList.add('drag')}if(gesture.moved){T.x=gesture.tx+dx;T.y=gesture.ty+dy;applyT()}}
-  else if(gesture.type==='pinch'&&ptrs.size>=2){const[a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y),cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
-    const ns=Math.min(MAXS,Math.max(MINS,gesture.s*d/gesture.d));const mx=(gesture.cx-gesture.tx)/gesture.s,my=(gesture.cy-gesture.ty)/gesture.s;T.s=ns;T.x=cx-mx*ns;T.y=cy-my*ns;applyT()}
-  else if(gesture.type==='draw'&&state.edit&&state.edit.stroke){const st=state.edit.stroke;const p=toMap(e.clientX,e.clientY);const l=st[st.length-1];if(Math.hypot(p[0]-l[0],p[1]-l[1])*T.s>3){st.push(p);renderLines()}}
-});
-function endPtr(e){
-  if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);vp.classList.remove('drag');
-  if(gesture&&gesture.type==='draw'&&ptrs.size===0){finishStroke();gesture=null;return}
-  if(gesture&&gesture.type==='pan'&&ptrs.size===0){
-    const tap=!gesture.moved&&performance.now()-gesture.t<600;gesture=null;
-    if(tap){const[px,py]=toMap(e.clientX,e.clientY);onTap(px,py)}return}
-  if(ptrs.size===1&&gesture&&gesture.type==='pinch'){const p=[...ptrs.values()][0];gesture={type:'pan',sx:p.x,sy:p.y,tx:T.x,ty:T.y,t:0,moved:true}}
-  if(ptrs.size===0){gesture=null;if(state.edit)buildHandles()}
-}
-vp.addEventListener('pointerup',endPtr);vp.addEventListener('pointercancel',endPtr);
-vp.addEventListener('contextmenu',e=>e.preventDefault());
-let wheelT=null;
-vp.addEventListener('wheel',e=>{e.preventDefault();const f=Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0018));zoomAt(e.clientX,e.clientY,f);if(state.edit){clearTimeout(wheelT);wheelT=setTimeout(buildHandles,120)}},{passive:false});
-function finishStroke(){
-  const e=state.edit;if(!e||!e.stroke)return;let st=e.stroke;e.stroke=null;
-  if(st.length<2){renderLines();return}
-  st=simplify(st,Math.max(0.6,1.8/T.s));
-  pushUndo();
-  if(!e.points.length)e.points=st;
-  else{
-    const a=e.points[0],b=e.points[e.points.length-1],s0=st[0];
-    const da=Math.hypot(s0[0]-a[0],s0[1]-a[1]),db=Math.hypot(s0[0]-b[0],s0[1]-b[1]);
-    if(da<db)e.points=st.slice().reverse().concat(e.points.slice(1));else e.points=e.points.concat(st.slice(1));
-  }
-  e.points=e.points.map(p=>[Math.round(p[0]*10)/10,Math.round(p[1]*10)/10]);
-  renderLines();
-}
-function onTap(px,py){
-  if(mapTap(px,py))return;
-  const l=lineAt(px,py);if(l){openLine(l);return}
-  const r=rAt(px,py);if(r&&regions[r])openRegion(r);else closeCard();
-}
-function openLine(l){
-  card.innerHTML=`<button class="x" aria-label="Закрыть">×</button>
-   <div class="chead"><div><h2>${esc(l.name)}</h2><div class="sub">${l.kind==='river'?(RIVER_W[l.width]||RIVER_W[2]).n:'Дорога'} · длина ≈ ${fmtKm(pxDist(catmull(l.points,6))*settings.kmPerPx)}</div></div></div>
-   <div class="btns">${canWrite!==false?'<button class="btn pri" data-a="ed">Править</button>':''}</div>`;
-  card.hidden=false;card.querySelector('.x').onclick=closeCard;const b=card.querySelector('[data-a=ed]');if(b)b.onclick=()=>editLine(l.id);
-}
-function hover(e){
-  if(e.pointerType!=='mouse')return;const now=performance.now();if(now-hoverT<50)return;hoverT=now;
-  const[px,py]=toMap(e.clientX,e.clientY);let html='';
-  if(state.tool==='ruler'&&state.ruler.length){const l=state.ruler[state.ruler.length-1];html='Всего: '+fmtKm((pxDist(state.ruler)+Math.hypot(px-l[0],py-l[1]))*settings.kmPerPx)}
-  else if(state.tool==='view'){const ln=lineAt(px,py);if(ln)html=`<b style="font-weight:500">${esc(ln.name)}</b><span class="hint">${ln.kind==='river'?'река':'дорога'}</span>`;
-    else{const reg=regions[rAt(px,py)];if(reg){const f=factions[reg.faction]||{};html=`${armsSVG(f.arms,20)}<div><b style="font-weight:500">${esc(reg.name)}</b><br><span class="hint">${esc(f.name||'')}</span></div>`}}}
-  if(!html){tip.hidden=true;return}tip.innerHTML=html;tip.hidden=false;tip.style.left=Math.min(e.clientX+14,innerWidth-270)+'px';tip.style.top=(e.clientY+14)+'px';
-}
-vp.addEventListener('pointerleave',()=>tip.hidden=true);
-addEventListener('keydown',e=>{
-  if(e.target.matches('input,textarea,select'))return;
-  if(e.key==='Escape'){if(state.tool!=='view')setTool('view');else closeCard()}
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&state.edit){const u=state.edit.undo.pop();if(u){state.edit.points=JSON.parse(u);renderLines();buildHandles()}e.preventDefault()}
-});
-addEventListener('resize',()=>updateOverlay());
-$('#zIn').onclick=()=>{zoomAt(innerWidth/2,innerHeight/2,1.4);if(state.edit)buildHandles()};
-$('#zOut').onclick=()=>{zoomAt(innerWidth/2,innerHeight/2,1/1.4);if(state.edit)buildHandles()};
-$('#zFit').onclick=fitAll;
-$('#zHome').onclick=()=>{const a=cities.find(c=>c.id==='alosard');if(a)flyTo(a.x+60,a.y+40,0.55)};
-
-// ---------- go ----------
-await new Promise(r=>{const i=$('#imgBase');if(i.complete)r();else{i.onload=r;i.onerror=r}});
-applyAll();
-if(innerWidth<=760){$('#panel').hidden=true;$('#bPanel').setAttribute('aria-pressed','false')}
-{const a=cities.find(c=>c.id==='alosard')||cities[0];centerOn(a.x+60,a.y+40,innerWidth<=760?0.32:0.5)}
-$('#loading').remove();
-})().catch(e=>{console.error(e);const l=document.getElementById('loading');if(l)l.innerHTML='Карта не загрузилась<small>'+String(e&&e.message||e)+'</small>'});
 </script>
-
-</body>
-</html>
