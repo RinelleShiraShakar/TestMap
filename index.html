@@ -196,6 +196,9 @@ const dash=v=>(!v||v==='—'||/^не указан/.test(v))?'—':v;
 /* ---------- Портреты и гербы-картинки (из сводки персонажей) ---------- */
 const PORTRAITS=[[/Олаф Сард/,'img/p-olaf-sard.jpg'],[/Юсти(на|ана).*Калифакт/,'img/p-yustiana-kalifakt.jpg'],[/Амала Сард/,'img/p-amala-sard.jpg'],[/Тересия Сард/,'img/p-teresiya-sard.jpg'],[/Торисмунд Амм?ал/,'img/p-torismund-amal.jpg'],[/Елена Васильева/,'img/p-elena-vasileva.jpg'],[/Лагерта/,'img/p-lagerta-tebriksdotter.jpg'],[/Хродгар Сакс/,'img/p-hrodgar-saks.jpg']];
 const portrait=n=>{const p=PORTRAITS.find(([r])=>r.test(n));return p?p[1]:null};
+// Все персонажи младше 14 лет получают общий портрет (решение Nerissa)
+const isChild=m=>{const t=(m.text||'').replace(/^[,\s]+/,'');const a=t.match(/^(\d+)\s*(год|лет)/);return (a&&+a[1]<14)||/новорожд/i.test(t)||/новорожд/i.test(m.name)};
+const pic=m=>portrait(m.name)||(isChild(m)?'img/p-deti.jpg':null);
 const ARMS_IMG={'Хеортания':'img/arms-sardy.png','Аммалингия':'img/arms-sardy.png', // герб дома Сардов
   'Данники_Турана':'img/arms-ammaly-arirhail.png', // герб Аммалов из Арирхайла (со слов Nerissa)
   'Северные_Владыки':'img/arms-vasilevy.png', // герб рода Васильевых
@@ -240,7 +243,7 @@ function arms(st,size){
 
 /* ---------- Люди ---------- */
 function initials(n){const p=n.replace(/[«»"()]/g,'').split(/\s+/).filter(w=>/^[А-ЯЁA-Z]/.test(w)&&!/^(Вождь|Королева|Король|Конунг|Стратиот|Великий|Понтифик|Жрица|Архонт)$/.test(w));return(p[0]?p[0][0]:'?')+(p[1]?p[1][0]:'')}
-function face(m){const p=portrait(m.name);return p?`<div class="face pic" title="${esc(m.name)}"><img src="${p}" alt="${esc(m.name)}" loading="lazy"></div>`:`<div class="face" title="${esc(m.name)}">${esc(initials(m.name))}</div>`}
+function face(m){const p=pic(m);return p?`<div class="face pic" title="${esc(m.name)}"><img src="${p}" alt="${esc(m.name)}" loading="lazy"></div>`:`<div class="face" title="${esc(m.name)}">${esc(initials(m.name))}</div>`}
 function faces(list,max){
   max=max||5; if(!list.length) return '';
   list=[...list].sort((a,b)=>(portrait(b.name)?1:0)-(portrait(a.name)?1:0));
@@ -370,7 +373,7 @@ function openSettlement(s,fly){
 function houseBlock(h){const H=D.houses[h];
   const ha=houseArms(H.name);
   return `<div class="house"><h5>${ha?`<img class="harms" src="${ha}" alt="" width="26" height="26">`:''}${esc(H.name)}</h5>${H.desc?`<p>${esc(H.desc)}</p>`:''}
-    <ul>${H.members.map(m=>`<li>${portrait(m.name)?face(m):''}<div><b>${esc(m.name)}</b>${m.text?` <span>${esc(m.text.replace(/^,\s*/,''))}</span>`:''}</div></li>`).join('')}</ul></div>`}
+    <ul>${H.members.map(m=>`<li>${pic(m)?face(m):''}<div><b>${esc(m.name)}</b>${m.text?` <span>${esc(m.text.replace(/^,\s*/,''))}</span>`:''}</div></li>`).join('')}</ul></div>`}
 function openState(st,fly){
   const provs=D.provinces.filter(p=>p.state===st.id);
   const sets=D.settlements.filter(s=>s.state===st.id);
