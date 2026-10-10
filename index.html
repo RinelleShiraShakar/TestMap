@@ -191,7 +191,7 @@ const stateById=Object.fromEntries(D.states.map(s=>[s.id,s]));
 const provByRid=Object.fromEntries(D.provinces.map(p=>[p.rid,p]));
 const setByName=Object.fromEntries(D.settlements.map(s=>[s.name,s]));
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const dash=v=>(!v||v==='—')?'—':v;
+const dash=v=>(!v||v==='—'||/^не указан/.test(v))?'—':v;
 
 /* ---------- Портреты и гербы-картинки (из сводки персонажей) ---------- */
 const PORTRAITS=[[/Олаф Сард/,'img/p-olaf-sard.jpg'],[/Юсти(на|ана).*Калифакт/,'img/p-yustiana-kalifakt.jpg'],[/Амала Сард/,'img/p-amala-sard.jpg'],[/Тересия Сард/,'img/p-teresiya-sard.jpg'],[/Торисмунд Амм?ал/,'img/p-torismund-amal.jpg'],[/Елена Васильева/,'img/p-elena-vasileva.jpg'],[/Лагерта/,'img/p-lagerta-tebriksdotter.jpg'],[/Хродгар Сакс/,'img/p-hrodgar-saks.jpg']];
@@ -344,7 +344,10 @@ const rule='<div class="rule"></div>';
 function openSettlement(s,fly){
   const st=stateById[s.state]; const h=s.house; const people=houseMembers(h);
   const desc=[s.note&&s.note!=='—'?s.note:''].filter(Boolean).join(' ');
+  const pv=D.provinces.find(p=>p.rid===s.rid);
   const extra=[['Тип',s.type],['Состояние',dash(s.status)],['Дороги',dash(s.roads)]];
+  if(pv&&pv.governor&&dash(pv.governor)!=='—') extra.push(['Наместник провинции',pv.governor]);
+  if(pv&&pv.ptype) extra.push(['Тип провинции',pv.ptype]);
   openPanel(`
    <div class="phead">${h!=null&&houseArms(D.houses[h].name)?`<img class="arms" src="${houseArms(D.houses[h].name)}" width="64" height="64" alt="Герб: ${esc(houseName(h))}">`:arms(st,64)}<div><h2>${esc(s.name)}</h2><p>${esc(s.type)}${s.capital&&s.type!=='столица'?' · столица':''}</p></div></div>
    ${people.length?faces(people,7):''}
@@ -387,6 +390,7 @@ function openState(st,fly){
      <div><dt>Вера</dt><dd>${faith?esc(faith):'—'}</dd></div>
    </dl>
    ${st.note?rule+`<p class="desc">${esc(st.note)}</p>`:''}
+   ${provs.some(p=>p.ptype||p.owner||p.governor)?rule+`<div class="sec"><h4>Провинции</h4>${provs.map(p=>`<div class="house"><h5>${esc(p.name)}</h5><dl class="facts" style="margin-top:8px">${[['Тип',p.ptype],['Владелец',p.owner],['Наместник',p.governor]].map(([a,b])=>`<div><dt>${a}</dt><dd>${esc(dash(b))}</dd></div>`).join('')}</dl></div>`).join('')}</div>`:''}
    ${cul?`<p class="desc note">${esc(cul.text)}</p>`:''}
    ${rule}
    <div class="sec"><h4>Поселения</h4><p class="desc">${sets.map(s=>`<button class="more" data-set="${esc(s.name)}">${s.capital?'★ ':''}${esc(s.name)}</button>`).join(' · ')}</p></div>

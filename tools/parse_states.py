@@ -25,6 +25,10 @@ for fp in files:
                 x,y=[int(v) for v in re.findall(r'\d+',c[1])[:2]]; prov_info['cx']=x; prov_info['cy']=y
             elif c[0].startswith('Площадь'): prov_info['area']=c[1]
             elif c[0].startswith('Где'): prov_info['where']=c[1]
+            elif c[0]=='Тип провинции': prov_info['ptype']=strip_md(c[1])
+            elif c[0]=='Владелец': prov_info['owner']=strip_md(c[1])
+            elif c[0]=='Наместник': prov_info['governor']=strip_md(c[1])
+            elif c[0]=='Название в атласе': prov_info['atlas']=strip_md(c[1])
         elif len(c)==7 and c[0]!='Поселение':
             xy=re.findall(r'\d+',c[5])
             if len(xy)<2: continue
