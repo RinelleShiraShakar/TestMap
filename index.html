@@ -85,6 +85,11 @@ button{font:inherit;color:inherit}
 .faces{display:flex;gap:6px;flex-wrap:wrap}
 .face{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--gold-dim);background:linear-gradient(160deg,var(--panel-2),var(--abyss));
   font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--gold);letter-spacing:.02em}
+.face img{width:100%;height:100%;object-fit:cover;display:block}
+.face.pic{padding:0;overflow:hidden;border-color:var(--gold)}
+.phead img.arms,.rlabel img.arms{flex:none;border-radius:50%;box-shadow:0 0 0 3px var(--gold),0 3px 8px rgba(0,0,0,.6)}
+.house li{display:flex;gap:10px;align-items:flex-start}
+.house li .face{flex:none;width:44px;height:44px}
 .face.more{color:var(--muted);font-family:var(--font-body);font-size:12px;font-weight:500}
 
 /* Панель */
@@ -186,6 +191,10 @@ const setByName=Object.fromEntries(D.settlements.map(s=>[s.name,s]));
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dash=v=>(!v||v==='—')?'—':v;
 
+/* ---------- Портреты и гербы-картинки (из сводки персонажей) ---------- */
+const PORTRAITS=[[/Олаф Сард/,'img/p-olaf-sard.jpg'],[/Юсти(на|ана).*Калифакт/,'img/p-yustiana-kalifakt.jpg'],[/Амала Сард/,'img/p-amala-sard.jpg'],[/Тересия Сард/,'img/p-teresiya-sard.jpg']];
+const portrait=n=>{const p=PORTRAITS.find(([r])=>r.test(n));return p?p[1]:null};
+const ARMS_IMG={'Хеортания':'img/arms-sardy.png','Аммалингия':'img/arms-sardy.png'}; // герб дома Сардов
 /* ---------- Герб ---------- */
 const CH={
  sun:'<circle cx="50" cy="52" r="13"/><g stroke-width="5" stroke-linecap="round">'+[...Array(8)].map((_,i)=>{const a=i*Math.PI/4,x1=50+Math.cos(a)*19,y1=52+Math.sin(a)*19,x2=50+Math.cos(a)*27,y2=52+Math.sin(a)*27;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor"/>`}).join('')+'</g>',
@@ -203,6 +212,7 @@ const CH={
 };
 function lum(hex){const n=parseInt(hex.slice(1),16);return(.299*(n>>16)+.587*((n>>8)&255)+.114*(n&255))/255}
 function arms(st,size){
+  if(st&&ARMS_IMG[st.id]){const z=size||64;return `<img class="arms" src="${ARMS_IMG[st.id]}" width="${z}" height="${z}" alt="Герб: ${esc(st.title)}">`}
   const a=st&&st.arms; const f=a?a.field:'#3a3a3a'; const c=lum(f)>.55?'#1c1410':'#e8cf8a';
   const ch=a?(CH[a.charge]||''):'';
   return `<svg viewBox="0 0 100 118" width="${size||64}" aria-hidden="true">
@@ -215,9 +225,11 @@ function arms(st,size){
 
 /* ---------- Люди ---------- */
 function initials(n){const p=n.replace(/[«»"()]/g,'').split(/\s+/).filter(w=>/^[А-ЯЁA-Z]/.test(w)&&!/^(Вождь|Королева|Король|Конунг|Стратиот|Великий|Понтифик|Жрица|Архонт)$/.test(w));return(p[0]?p[0][0]:'?')+(p[1]?p[1][0]:'')}
+function face(m){const p=portrait(m.name);return p?`<div class="face pic" title="${esc(m.name)}"><img src="${p}" alt="${esc(m.name)}" loading="lazy"></div>`:`<div class="face" title="${esc(m.name)}">${esc(initials(m.name))}</div>`}
 function faces(list,max){
   max=max||5; if(!list.length) return '';
-  const shown=list.slice(0,max).map(m=>`<div class="face" title="${esc(m.name)}">${esc(initials(m.name))}</div>`).join('');
+  list=[...list].sort((a,b)=>(portrait(b.name)?1:0)-(portrait(a.name)?1:0));
+  const shown=list.slice(0,max).map(face).join('');
   return `<div class="faces">${shown}${list.length>max?`<div class="face more">+${list.length-max}</div>`:''}</div>`;
 }
 const houseMembers=h=>h==null?[]:D.houses[h].members;
@@ -339,7 +351,7 @@ function openSettlement(s,fly){
 }
 function houseBlock(h){const H=D.houses[h];
   return `<div class="house"><h5>${esc(H.name)}</h5>${H.desc?`<p>${esc(H.desc)}</p>`:''}
-    <ul>${H.members.map(m=>`<li><b>${esc(m.name)}</b>${m.text?` <span>${esc(m.text.replace(/^,\s*/,''))}</span>`:''}</li>`).join('')}</ul></div>`}
+    <ul>${H.members.map(m=>`<li>${portrait(m.name)?face(m):''}<div><b>${esc(m.name)}</b>${m.text?` <span>${esc(m.text.replace(/^,\s*/,''))}</span>`:''}</div></li>`).join('')}</ul></div>`}
 function openState(st,fly){
   const provs=D.provinces.filter(p=>p.state===st.id);
   const sets=D.settlements.filter(s=>s.state===st.id);
