@@ -13,7 +13,7 @@ for l in txt.split('\n'):
     if cur is None: continue
     if l.startswith('- **'):
         mm=re.match(r'- \*\*(.+?)\*\*(.*)',l); rest=mm.group(2).strip().lstrip(',').strip()
-        cur['members'].append(dict(name=mm.group(1),text=rest))
+        cur['members'].append(dict(name=mm.group(1).rstrip('.'),text=rest))
     elif l.strip() and not l.startswith(('- _','---')) and not cur['members']:
         cur['desc']=(cur['desc']+' '+l.strip()).strip()
 blocks=[b for b in blocks if b['members'] or b['desc']]
