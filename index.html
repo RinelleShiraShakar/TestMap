@@ -200,10 +200,16 @@ const ARMS_IMG={'Хеортания':'img/arms-sardy.png','Аммалингия'
   'Данники_Турана':'img/arms-ammaly-arirhail.png', // герб Аммалов из Арирхайла (со слов Nerissa)
   'Северные_Владыки':'img/arms-vasilevy.png', // герб рода Васильевых
   'Хиндъяльф':'img/arms-vasilevy.png', // Хиндъяльф в Северной Империи, тот же герб (со слов Nerissa)
-  'Империя':'img/arms-imperiya.png'}; // герб Империи (орёл с эмблемы)
-const HOUSE_ARMS=[[/^Племя Сардов/,'img/arms-sardy.png'],[/^Аммалы из Арирхайла/,'img/arms-ammaly-arirhail.png'],[/^Род Васильевых/,'img/arms-vasilevy.png'],[/^Род Барбариенсов/,'img/arms-barbariensy.png'],[/^Род Саксов/,'img/arms-saksy.png']];
+  'Империя':'img/arms-imperiya.png', // герб Империи (орёл с эмблемы)
+  // владения Империи под гербом правящего дома (каталог государств, «Правящий дом»)
+  'Этерналия':'img/arms-kalifakty.png','Южные_земли':'img/arms-el-brante.png','Маринари':'img/arms-marinari.png',
+  'Пиррет':'img/arms-astrarii.png','Бергамо_и_Аэномосберг':'img/arms-viskonti.png'};
+const HOUSE_ARMS=[[/^Племя Сардов/,'img/arms-sardy.png'],[/^Аммалы из Арирхайла/,'img/arms-ammaly-arirhail.png'],[/^Род Васильевых/,'img/arms-vasilevy.png'],[/^Род Барбариенсов/,'img/arms-barbariensy.png'],[/^Род Саксов/,'img/arms-saksy.png'],
+  [/^Дом Неретцес/,'img/arms-neretces.png'],[/^Дом Калифакт/,'img/arms-kalifakty.png'],[/^Дом Эль Бранте/,'img/arms-el-brante.png'],
+  [/^Дом Маринари/,'img/arms-marinari.png'],[/^Род Лонгов/,'img/arms-longi.png'],[/^Дом Астрарий/,'img/arms-astrarii.png'],[/^Дом Висконти/,'img/arms-viskonti.png']];
 const houseArms=n=>{const p=HOUSE_ARMS.find(([r])=>r.test(n));return p?p[1]:null};
-const STATE_ART={'Северные_Владыки':'img/art-severnye-vladyki.jpg','Империя':'img/art-imperiya.jpg'}; // эмблема Северных Владык
+const STATE_ART={'Северные_Владыки':'img/art-severnye-vladyki.jpg','Империя':'img/art-imperiya.jpg','Этерналия':'img/art-kalifakty.jpg',
+  'Южные_земли':'img/art-el-brante.jpg','Маринари':'img/art-marinari.jpg','Пиррет':'img/art-astrarii.jpg','Бергамо_и_Аэномосберг':'img/art-viskonti.jpg'}; // эмблема Северных Владык
 /* ---------- Герб ---------- */
 const CH={
  sun:'<circle cx="50" cy="52" r="13"/><g stroke-width="5" stroke-linecap="round">'+[...Array(8)].map((_,i)=>{const a=i*Math.PI/4,x1=50+Math.cos(a)*19,y1=52+Math.sin(a)*19,x2=50+Math.cos(a)*27,y2=52+Math.sin(a)*27;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor"/>`}).join('')+'</g>',
@@ -340,7 +346,7 @@ function openSettlement(s,fly){
   const desc=[s.note&&s.note!=='—'?s.note:''].filter(Boolean).join(' ');
   const extra=[['Тип',s.type],['Состояние',dash(s.status)],['Дороги',dash(s.roads)]];
   openPanel(`
-   <div class="phead">${arms(st,64)}<div><h2>${esc(s.name)}</h2><p>${esc(s.type)}${s.capital&&s.type!=='столица'?' · столица':''}</p></div></div>
+   <div class="phead">${h!=null&&houseArms(D.houses[h].name)?`<img class="arms" src="${houseArms(D.houses[h].name)}" width="64" height="64" alt="Герб: ${esc(houseName(h))}">`:arms(st,64)}<div><h2>${esc(s.name)}</h2><p>${esc(s.type)}${s.capital&&s.type!=='столица'?' · столица':''}</p></div></div>
    ${people.length?faces(people,7):''}
    ${rule}
    <dl class="facts">
